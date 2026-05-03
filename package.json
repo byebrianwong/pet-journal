@@ -1,0 +1,48 @@
+{
+  "name": "pet-journal-init",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.15.9",
+    "@react-navigation/native": "^7.2.2",
+    "@react-navigation/native-stack": "^7.14.10",
+    "@supabase/supabase-js": "^2.101.1",
+    "expo": "~54.0.33",
+    "expo-camera": "^55.0.13",
+    "expo-file-system": "~19.0.21",
+    "expo-image-picker": "^55.0.16",
+    "expo-linking": "^55.0.11",
+    "expo-notifications": "^55.0.16",
+    "expo-secure-store": "^55.0.11",
+    "expo-status-bar": "~3.0.9",
+    "nativewind": "^4.2.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-reanimated": "^4.3.0",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-screens": "^4.24.0",
+    "react-native-web": "^0.21.0",
+    "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.6.14",
+    "@storybook/addon-interactions": "^8.6.14",
+    "@storybook/react-vite": "^8.6.18",
+    "@storybook/test": "^8.6.18",
+    "@types/react": "~19.1.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "storybook": "^8.6.18",
+    "typescript": "~5.9.2",
+    "vite": "^5.4.21"
+  },
+  "private": true
+}

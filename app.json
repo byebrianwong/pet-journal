@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Pet Journal",
+    "slug": "pet-journal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "petjournal",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f5f0eb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.petjournal.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pet Journal uses the camera to scan vet receipts.",
+        "NSPhotoLibraryUsageDescription": "Pet Journal uses your photo library to add pet memories."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f5f0eb"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.petjournal.app"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
