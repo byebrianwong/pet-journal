@@ -152,12 +152,13 @@ function SetupRequiredScreen() {
       <View style={setupStyles.codeBlock}>
         <Text style={setupStyles.codeText}>
           EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co{'\n'}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
         </Text>
       </View>
       <Text style={setupStyles.hint}>
-        Then restart the dev server. Find these values in your Supabase project at
-        Settings → API.
+        Find these in your Supabase project at Settings → API. Paste either the
+        new <Text style={setupStyles.code}>sb_publishable_</Text> key (preferred)
+        or the legacy anon JWT — both work. Then restart the dev server.
       </Text>
     </View>
   );
