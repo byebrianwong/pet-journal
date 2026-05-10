@@ -1,31 +1,44 @@
--- One-shot diagnostic for the pets-insert RLS rejection. Paste in SQL Editor.
--- Read each result block; the answers will tell us which assumption is wrong.
+-- Diagnostic for the pets-insert RLS rejection. Run all of this in one go in
+-- the SQL Editor. It installs a debug RPC, then I'll call it from the app
+-- to see exactly what the database sees when the user is authed.
 
--- 1. EVERY policy currently attached to public.pets
-select policyname, cmd, permissive, roles, qual, with_check
+-- 1. Show the policies on pets so we know what's actually attached
+select policyname, cmd, permissive, qual, with_check
 from pg_policies
 where schemaname = 'public' and tablename = 'pets'
 order by policyname;
 
--- 2. Columns in the table (so we can see if created_by exists, has NOT NULL,
---    has a default, etc.)
-select column_name, data_type, is_nullable, column_default
-from information_schema.columns
-where table_schema = 'public' and table_name = 'pets'
-order by ordinal_position;
+-- 2. Install a debug RPC that returns what auth/JWT settings look like
+--    inside a request evaluated as the authenticated user. The function is
+--    NOT security definer — it should run with the caller's identity.
+create or replace function public.debug_auth()
+returns table(
+  uid_value text,
+  uid_is_null boolean,
+  jwt_sub text,
+  jwt_role text,
+  current_role_name text,
+  comparison_test boolean
+)
+language sql
+stable
+as $$
+  select
+    auth.uid()::text as uid_value,
+    (auth.uid() is null) as uid_is_null,
+    coalesce(
+      nullif(current_setting('request.jwt.claim.sub', true), ''),
+      (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+    ) as jwt_sub,
+    coalesce(
+      nullif(current_setting('request.jwt.claim.role', true), ''),
+      (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+    ) as jwt_role,
+    current_user::text as current_role_name,
+    -- Will resolve to the same expression PostgREST uses to evaluate the
+    -- pets_insert WITH CHECK clause when created_by is set to auth.uid().
+    (auth.uid() = auth.uid()) as comparison_test;
+$$;
 
--- 3. Foreign keys on the table
-select tc.constraint_name, kcu.column_name,
-       ccu.table_schema || '.' || ccu.table_name as references_table,
-       ccu.column_name as references_column
-from information_schema.table_constraints tc
-join information_schema.key_column_usage kcu on tc.constraint_name = kcu.constraint_name
-join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name
-where tc.table_schema = 'public' and tc.table_name = 'pets'
-  and tc.constraint_type = 'FOREIGN KEY';
-
--- 4. Check whether RLS is enabled and forced
-select c.relname, c.relrowsecurity as rls_enabled, c.relforcerowsecurity as rls_forced
-from pg_class c
-join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relname = 'pets';
+-- 3. Grant access so the authenticated role can call it via PostgREST
+grant execute on function public.debug_auth() to anon, authenticated;
