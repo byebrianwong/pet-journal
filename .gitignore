@@ -40,6 +40,9 @@ yarn-error.*
 # Storybook
 storybook-static/
 
+# Supabase CLI scratch state (project-link metadata, version markers)
+supabase/.temp/
+
 # generated native folders
 /ios
 /android
