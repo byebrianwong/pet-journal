@@ -250,6 +250,28 @@ create policy "invites_update_accept" on public.pet_invites
   for update using (accepted_by is null);
 
 -- ========================================================================
+-- Grants
+-- ========================================================================
+-- RLS gates rows; grants allow the operation to be attempted at all.
+-- Without these, PostgREST silently strips columns the calling role can't
+-- write (e.g. created_by), which then fails any RLS check that references
+-- the missing column.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on
+  public.users,
+  public.pets,
+  public.pet_shares,
+  public.timeline_events,
+  public.medications,
+  public.pet_invites
+to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated;
+alter default privileges in schema public
+  grant usage, select on sequences to anon, authenticated;
+
+-- ========================================================================
 -- Realtime
 -- ========================================================================
 -- Add timeline_events to realtime publication if not already a member
