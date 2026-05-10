@@ -28,6 +28,23 @@ export default meta;
 
 type Story = StoryObj<typeof TimelineScreen>;
 
+export const NoPetsFirstRun: Story = {
+  parameters: {
+    mock: {
+      pets: [],
+      shares: [],
+      events: [],
+      medications: [],
+    },
+    docs: {
+      description: {
+        story:
+          'No pets yet — first-run experience. The screen renders an inline "Add a Pet" CTA instead of redirecting to AddPet (which used to destroy the back stack).',
+      },
+    },
+  },
+};
+
 export const EmptyTimeline: Story = {
   parameters: {
     mock: {

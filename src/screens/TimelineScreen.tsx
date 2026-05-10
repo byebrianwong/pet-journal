@@ -37,7 +37,12 @@ export function TimelineScreen({ navigation }: any) {
     try {
       const pets = await getMyPets();
       if (pets.length === 0) {
-        navigation.replace('AddPet');
+        // Render empty state inline (handled below). Don't navigation.replace
+        // — that destroys the back stack and traps the user on AddPet.
+        setPet(null);
+        setShares([]);
+        setEvents([]);
+        setMedications([]);
         return;
       }
 
@@ -120,6 +125,25 @@ export function TimelineScreen({ navigation }: any) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  // No pets yet — show a friendly first-run CTA instead of redirecting to AddPet.
+  if (!pet) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]} edges={['top']}>
+        <Text style={styles.firstRunEmoji}>🐾</Text>
+        <Text style={styles.firstRunTitle}>Welcome to Pet Journal</Text>
+        <Text style={styles.firstRunSubtitle}>
+          Add your first pet to start their timeline.
+        </Text>
+        <TouchableOpacity
+          style={styles.firstRunButton}
+          onPress={() => navigation.navigate('AddPet')}
+        >
+          <Text style={styles.firstRunButtonText}>Add a Pet</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -222,4 +246,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   fabText: { fontSize: 28, color: '#fff', marginTop: -2 },
+  firstRunEmoji: { fontSize: 64, marginBottom: 16 },
+  firstRunTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  firstRunSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 32,
+  },
+  firstRunButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 24,
+  },
+  firstRunButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

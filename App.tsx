@@ -270,7 +270,7 @@ export default function App() {
           <>
             <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: '' }} />
-            <Stack.Screen name="AddPet" component={AddPetScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="AddPet" component={AddPetScreen} options={{ title: 'Add a Pet' }} />
             <Stack.Screen name="Medications" component={MedicationsScreen} options={{ title: 'Medications' }} />
             <Stack.Screen name="Sharing" component={SharingScreen} options={{ title: 'Sharing' }} />
             <Stack.Screen name="FiSetup" component={FiSetupScreen} options={{ title: 'Fi Collar' }} />

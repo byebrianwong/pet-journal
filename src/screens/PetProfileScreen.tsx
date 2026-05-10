@@ -100,6 +100,17 @@ export function PetProfileScreen({ navigation }: any) {
       </View>
 
       <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('AddPet')}
+        >
+          <Text style={styles.menuEmoji}>➕</Text>
+          <Text style={styles.menuText}>Add another pet</Text>
+          <Text style={styles.menuChevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
         <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
           <Text style={styles.menuEmoji}>🚪</Text>
           <Text style={[styles.menuText, { color: colors.error }]}>Sign Out</Text>

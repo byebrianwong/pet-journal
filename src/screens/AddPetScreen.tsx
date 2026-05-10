@@ -26,7 +26,15 @@ export function AddPetScreen({ navigation }: any) {
         birthday: birthday.trim() || undefined,
         weight_lbs: weight ? parseFloat(weight) : undefined,
       });
-      navigation.replace('Main');
+      // If we got here from somewhere (e.g. Profile → "Add another pet"),
+      // pop back to that. Otherwise (first-run AddPet from Timeline empty
+      // state, no real history), replace with Main so the user lands on
+      // their new pet's timeline rather than re-seeing the empty state.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Main');
+      }
     } catch (err: any) {
       notify('Error', err.message);
     } finally {
