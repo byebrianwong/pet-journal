@@ -78,16 +78,25 @@ function MainTabs() {
 function MedicationsTabWrapper(props: any) {
   const [petId, setPetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('pet_shares')
-        .select('pet_id')
-        .limit(1)
-        .maybeSingle();
-      if (data) setPetId(data.pet_id);
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error: queryErr } = await supabase
+          .from('pet_shares')
+          .select('pet_id')
+          .limit(1)
+          .maybeSingle();
+        if (queryErr) throw queryErr;
+        if (data) setPetId(data.pet_id);
+      } catch (err: any) {
+        setError(err?.message ?? 'Could not load your pet.');
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
@@ -96,6 +105,15 @@ function MedicationsTabWrapper(props: any) {
     return (
       <View style={emptyStyles.container}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={emptyStyles.container}>
+        <Text style={emptyStyles.emoji}>⚠️</Text>
+        <Text style={emptyStyles.title}>Could not load</Text>
+        <Text style={emptyStyles.subtitle}>{error}</Text>
       </View>
     );
   }

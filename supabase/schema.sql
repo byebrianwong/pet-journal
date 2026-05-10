@@ -12,6 +12,7 @@
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user() cascade;
 drop function if exists public.update_updated_at() cascade;
+drop function if exists public.is_pet_owner(uuid) cascade;
 
 drop table if exists public.pet_invites cascade;
 drop table if exists public.medications cascade;
@@ -140,6 +141,25 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- "Am I the owner of this pet?" helper. SECURITY DEFINER bypasses RLS for
+-- this lookup, which is what lets pet_shares policies self-reference the
+-- table without triggering Postgres error 42P17 (infinite recursion in
+-- policy). Used by the shares_*_owner policies below.
+create or replace function public.is_pet_owner(p_pet_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.pet_shares
+    where pet_id = p_pet_id
+      and user_id = auth.uid()
+      and role = 'owner'
+  );
+$$;
+
 -- ========================================================================
 -- Row Level Security
 -- ========================================================================
@@ -176,20 +196,20 @@ create policy "pets_insert" on public.pets
 create policy "pets_update_shared" on public.pets
   for update using (id in (select pet_id from pet_shares where user_id = auth.uid()));
 
--- Pet shares: read your own shares, owners can manage
+-- Pet shares: read your own shares, owners can manage. Use is_pet_owner()
+-- (SECURITY DEFINER) instead of a self-referencing subquery to avoid the
+-- infinite-recursion-in-policy error.
 create policy "shares_read_own" on public.pet_shares
   for select using (
-    user_id = auth.uid() or
-    pet_id in (select pet_id from pet_shares where user_id = auth.uid() and role = 'owner')
+    user_id = auth.uid() or is_pet_owner(pet_id)
   );
 create policy "shares_insert_owner" on public.pet_shares
   for insert with check (
-    pet_id in (select pet_id from pet_shares where user_id = auth.uid() and role = 'owner')
-    or user_id = auth.uid()
+    user_id = auth.uid() or is_pet_owner(pet_id)
   );
 create policy "shares_delete_owner" on public.pet_shares
   for delete using (
-    pet_id in (select pet_id from pet_shares where user_id = auth.uid() and role = 'owner')
+    is_pet_owner(pet_id)
   );
 
 -- Timeline events: read/write for shared pets

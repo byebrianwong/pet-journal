@@ -12,14 +12,26 @@ export function PetProfileScreen({ navigation }: any) {
   const [shareCount, setShareCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   const loadPet = useCallback(async () => {
-    const pets = await getMyPets();
-    if (pets.length > 0) {
-      setPet(pets[0]);
-      const shares = await getPetShares(pets[0].id);
-      setShareCount(shares.length);
+    setLoading(true);
+    setError(null);
+    try {
+      const pets = await getMyPets();
+      if (pets.length > 0) {
+        setPet(pets[0]);
+        const shares = await getPetShares(pets[0].id);
+        setShareCount(shares.length);
+      } else {
+        setPet(null);
+      }
+    } catch (err: any) {
+      setError(err?.message ?? 'Could not load your pet.');
+      setPet(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => { loadPet(); }, [loadPet]);
@@ -45,15 +57,23 @@ export function PetProfileScreen({ navigation }: any) {
   if (!pet) {
     return (
       <View style={[styles.container, styles.emptyContainer]}>
-        <Text style={styles.emptyEmoji}>🐾</Text>
-        <Text style={styles.emptyTitle}>No pet yet</Text>
-        <Text style={styles.emptySubtitle}>Add a pet to set up their profile.</Text>
-        <TouchableOpacity
-          style={styles.emptyButton}
-          onPress={() => navigation.navigate('AddPet')}
-        >
-          <Text style={styles.emptyButtonText}>Add a Pet</Text>
-        </TouchableOpacity>
+        <Text style={styles.emptyEmoji}>{error ? '⚠️' : '🐾'}</Text>
+        <Text style={styles.emptyTitle}>{error ? 'Could not load' : 'No pet yet'}</Text>
+        <Text style={styles.emptySubtitle}>
+          {error ?? 'Add a pet to set up their profile.'}
+        </Text>
+        {error ? (
+          <TouchableOpacity style={styles.emptyButton} onPress={loadPet}>
+            <Text style={styles.emptyButtonText}>Retry</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => navigation.navigate('AddPet')}
+          >
+            <Text style={styles.emptyButtonText}>Add a Pet</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.signOutLink} onPress={handleSignOut}>
           <Text style={styles.signOutLinkText}>Sign Out</Text>
         </TouchableOpacity>
