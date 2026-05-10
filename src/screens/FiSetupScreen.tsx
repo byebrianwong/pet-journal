@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
+import { notify, confirm } from '../utils/feedback';
 import { fiCollar } from '../services/fi-collar';
 
 export function FiSetupScreen({ navigation }: any) {
@@ -19,7 +20,7 @@ export function FiSetupScreen({ navigation }: any) {
 
   const handleConnect = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Required', 'Enter your Fi account email and password.');
+      notify('Required', 'Enter your Fi account email and password.');
       return;
     }
 
@@ -28,29 +29,26 @@ export function FiSetupScreen({ navigation }: any) {
       const success = await fiCollar.login(email.trim(), password);
       if (success) {
         setConnected(true);
-        Alert.alert('Connected!', 'Fi Collar data will sync automatically.');
+        notify('Connected!', 'Fi Collar data will sync automatically.');
       } else {
-        Alert.alert('Login failed', 'Check your Fi credentials and try again.');
+        notify('Login failed', 'Check your Fi credentials and try again.');
       }
     } catch {
-      Alert.alert('Error', 'Could not connect to Fi. Try again later.');
+      notify('Error', 'Could not connect to Fi. Try again later.');
     } finally {
       setConnecting(false);
     }
   };
 
   const handleDisconnect = async () => {
-    Alert.alert('Disconnect Fi?', 'Activity data will stop syncing.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disconnect',
-        style: 'destructive',
-        onPress: async () => {
-          await fiCollar.disconnect();
-          setConnected(false);
-        },
+    confirm('Disconnect Fi?', 'Activity data will stop syncing.', {
+      destructive: true,
+      confirmText: 'Disconnect',
+      onConfirm: async () => {
+        await fiCollar.disconnect();
+        setConnected(false);
       },
-    ]);
+    });
   };
 
   if (loading) return null;

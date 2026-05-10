@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Share,
+  View, Text, StyleSheet, FlatList, Platform, Share, TouchableOpacity,
 } from 'react-native';
 import { colors } from '../utils/colors';
+import { notify, confirm } from '../utils/feedback';
 import { getPetShares } from '../services/pets';
 import { getShareLink } from '../services/sharing';
 import { supabase } from '../services/supabase';
@@ -34,12 +35,30 @@ export function SharingScreen({ route }: any) {
     setGenerating(true);
     try {
       const link = await getShareLink(petId);
-      await Share.share({
-        message: `Join me on Pet Journal to help track ${petName}'s life! Open this link: ${link}`,
-      });
+      const message = `Join me on Pet Journal to help track ${petName}'s life! Open this link: ${link}`;
+
+      if (Platform.OS === 'web') {
+        // Native Share isn't reliable on web. Try the Web Share API; fall back
+        // to clipboard so the owner can paste the invite into Messages/email.
+        const webNav = typeof navigator !== 'undefined' ? (navigator as any) : null;
+        if (webNav?.share) {
+          try {
+            await webNav.share({ title: 'Pet Journal invite', text: message, url: link });
+          } catch (err: any) {
+            if (err?.name !== 'AbortError') throw err;
+          }
+        } else if (webNav?.clipboard?.writeText) {
+          await webNav.clipboard.writeText(link);
+          notify('Invite link copied', 'Paste it into Messages or email to share.');
+        } else {
+          notify('Invite link', link);
+        }
+      } else {
+        await Share.share({ message });
+      }
     } catch (err: any) {
-      if (err.message !== 'User did not share') {
-        Alert.alert('Error', err.message);
+      if (err?.message !== 'User did not share') {
+        notify('Error', err?.message ?? 'Could not generate invite link.');
       }
     } finally {
       setGenerating(false);
@@ -48,24 +67,21 @@ export function SharingScreen({ route }: any) {
 
   const handleRemove = async (share: ShareWithUser) => {
     if (share.role === 'owner') {
-      Alert.alert('Cannot remove', 'Cannot remove the pet owner.');
+      notify('Cannot remove', 'Cannot remove the pet owner.');
       return;
     }
 
-    Alert.alert(
+    confirm(
       'Remove access?',
       `Remove ${share.user.display_name ?? 'this person'} from ${petName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            await supabase.from('pet_shares').delete().eq('id', share.id);
-            await loadShares();
-          },
+      {
+        destructive: true,
+        confirmText: 'Remove',
+        onConfirm: async () => {
+          await supabase.from('pet_shares').delete().eq('id', share.id);
+          await loadShares();
         },
-      ]
+      }
     );
   };
 

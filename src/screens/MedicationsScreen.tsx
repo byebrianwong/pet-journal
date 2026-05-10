@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, Modal,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal,
 } from 'react-native';
 import { colors } from '../utils/colors';
+import { notify, confirm } from '../utils/feedback';
 import { getMedications, createMedication } from '../services/pets';
 import { scheduleMedicationReminders } from '../services/notifications';
 import { supabase } from '../services/supabase';
@@ -28,7 +29,7 @@ export function MedicationsScreen({ route }: any) {
 
   const handleAdd = async () => {
     if (!name.trim() || !dosage.trim()) {
-      Alert.alert('Required', 'Name and dosage are required.');
+      notify('Required', 'Name and dosage are required.');
       return;
     }
 
@@ -46,30 +47,27 @@ export function MedicationsScreen({ route }: any) {
       setDosage('');
       await loadMeds();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleStop = async (med: Medication) => {
-    Alert.alert(
+    confirm(
       'Stop medication?',
       `Stop tracking ${med.name}? This won't delete history.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Stop',
-          style: 'destructive',
-          onPress: async () => {
-            await supabase
-              .from('medications')
-              .update({ end_date: new Date().toISOString().split('T')[0] })
-              .eq('id', med.id);
-            await loadMeds();
-          },
+      {
+        destructive: true,
+        confirmText: 'Stop',
+        onConfirm: async () => {
+          await supabase
+            .from('medications')
+            .update({ end_date: new Date().toISOString().split('T')[0] })
+            .eq('id', med.id);
+          await loadMeds();
         },
-      ]
+      }
     );
   };
 

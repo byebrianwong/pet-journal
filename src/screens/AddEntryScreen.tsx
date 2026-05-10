@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image,
+  View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../utils/colors';
+import { notify } from '../utils/feedback';
 import { createTimelineEvent, uploadPhoto } from '../services/timeline';
 import { scanVetReceipt } from '../services/receipt-scanner';
 import { readAsStringAsync } from 'expo-file-system/legacy';
@@ -44,7 +45,7 @@ export function AddEntryScreen({ route, navigation }: any) {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera access is required to scan receipts.');
+      notify('Permission needed', 'Camera access is required to scan receipts.');
       return null;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -77,10 +78,10 @@ export function AddEntryScreen({ route, navigation }: any) {
         setCost(result.data.cost_total?.toString() ?? '');
         setTitle(result.data.clinic_name ? `Visit to ${result.data.clinic_name}` : 'Vet Visit');
       } else {
-        Alert.alert('Scan incomplete', 'Some fields could not be extracted. Please fill in manually.');
+        notify('Scan incomplete', 'Some fields could not be extracted. Please fill in manually.');
       }
     } catch {
-      Alert.alert('Scan failed', 'Could not process the receipt. Please enter details manually.');
+      notify('Scan failed', 'Could not process the receipt. Please enter details manually.');
     }
 
     setMode('vet_visit');
@@ -88,7 +89,7 @@ export function AddEntryScreen({ route, navigation }: any) {
 
   const handleSaveMemory = async () => {
     if (!title.trim()) {
-      Alert.alert('Title required', 'Give this memory a title.');
+      notify('Title required', 'Give this memory a title.');
       return;
     }
 
@@ -110,7 +111,7 @@ export function AddEntryScreen({ route, navigation }: any) {
 
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setSaving(false);
     }
@@ -144,7 +145,7 @@ export function AddEntryScreen({ route, navigation }: any) {
 
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
+import { notify } from '../utils/feedback';
 import { supabase } from '../services/supabase';
 
 export function AuthScreen() {
@@ -12,7 +13,7 @@ export function AuthScreen() {
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Required', 'Email and password are required.');
+      notify('Required', 'Email and password are required.');
       return;
     }
 
@@ -27,7 +28,7 @@ export function AuthScreen() {
           },
         });
         if (error) throw error;
-        Alert.alert('Check your email', 'We sent you a confirmation link.');
+        notify('Check your email', 'We sent you a confirmation link.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -36,7 +37,7 @@ export function AuthScreen() {
         if (error) throw error;
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setLoading(false);
     }

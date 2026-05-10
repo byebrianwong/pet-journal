@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
+import { confirm } from '../utils/feedback';
 import { getMyPets, getPetShares } from '../services/pets';
 import { supabase } from '../services/supabase';
 import type { Pet } from '../types/database';
@@ -24,14 +25,13 @@ export function PetProfileScreen({ navigation }: any) {
   useEffect(() => { loadPet(); }, [loadPet]);
 
   const handleSignOut = () => {
-    Alert.alert('Sign out?', 'You can always sign back in.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => supabase.auth.signOut(),
+    confirm('Sign out?', 'You can always sign back in.', {
+      destructive: true,
+      confirmText: 'Sign Out',
+      onConfirm: () => {
+        void supabase.auth.signOut();
       },
-    ]);
+    });
   };
 
   if (loading) return null;

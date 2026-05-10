@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../utils/colors';
+import { notify } from '../utils/feedback';
 import { groupByDate } from '../utils/dates';
 import { PetHeader } from '../components/PetHeader';
 import { MemoryCard } from '../components/cards/MemoryCard';
@@ -61,7 +62,7 @@ export function TimelineScreen({ navigation }: any) {
         setFiStatus({ connected: true, steps });
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export function TimelineScreen({ navigation }: any) {
       });
       await loadData();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     }
   }, [pet, loadData]);
 

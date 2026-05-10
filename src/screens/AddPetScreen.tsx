@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '../utils/colors';
+import { notify } from '../utils/feedback';
 import { createPet } from '../services/pets';
 
 export function AddPetScreen({ navigation }: any) {
@@ -12,7 +13,7 @@ export function AddPetScreen({ navigation }: any) {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', "What's your pet's name?");
+      notify('Name required', "What's your pet's name?");
       return;
     }
 
@@ -27,7 +28,7 @@ export function AddPetScreen({ navigation }: any) {
       });
       navigation.replace('Main');
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      notify('Error', err.message);
     } finally {
       setSaving(false);
     }
