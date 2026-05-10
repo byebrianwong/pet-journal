@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './src/services/supabase';
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -92,7 +92,13 @@ function MedicationsTabWrapper(props: any) {
     load();
   }, []);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <View style={emptyStyles.container}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
   if (!petId) {
     return (
       <View style={emptyStyles.container}>

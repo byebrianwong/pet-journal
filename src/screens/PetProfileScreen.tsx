@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
 import { confirm } from '../utils/feedback';
 import { getMyPets, getPetShares } from '../services/pets';
@@ -34,7 +34,13 @@ export function PetProfileScreen({ navigation }: any) {
     });
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.emptyContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   if (!pet) {
     return (

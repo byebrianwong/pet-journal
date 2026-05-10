@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { KeyboardAvoidingView, Platform, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
 import { notify } from '../utils/feedback';
 import { supabase } from '../services/supabase';
@@ -14,6 +14,11 @@ export function AuthScreen() {
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
       notify('Required', 'Email and password are required.');
+      return;
+    }
+
+    if (isSignUp && password.length < 6) {
+      notify('Password too short', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -44,7 +49,10 @@ export function AuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Text style={styles.logo}>🐾</Text>
       <Text style={styles.title}>Pet Journal</Text>
       <Text style={styles.subtitle}>Your pet's life story, together</Text>
@@ -72,7 +80,7 @@ export function AuthScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={isSignUp ? 'Password (6+ characters)' : 'Password'}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -94,7 +102,7 @@ export function AuthScreen() {
           {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
         </Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
