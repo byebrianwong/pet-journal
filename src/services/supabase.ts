@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../utils/secure-storage';
 import { Platform } from 'react-native';
 
 // Fall back to a syntactically-valid placeholder when env vars are missing so

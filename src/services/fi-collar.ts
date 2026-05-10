@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../utils/secure-storage';
 
 const FI_API_BASE = 'https://app.tryfi.com/api';
 const FI_TOKEN_KEY = 'fi_session_token';
