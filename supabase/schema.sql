@@ -13,6 +13,7 @@ drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user() cascade;
 drop function if exists public.update_updated_at() cascade;
 drop function if exists public.is_pet_owner(uuid) cascade;
+drop function if exists public.create_pet_with_owner(text, text, text, date, decimal, text) cascade;
 
 drop table if exists public.pet_invites cascade;
 drop table if exists public.medications cascade;
@@ -159,6 +160,43 @@ as $$
       and role = 'owner'
   );
 $$;
+
+-- Atomic create-pet RPC: inserts the pet AND the owner share in one
+-- transaction, with created_by set server-side from auth.uid(). SECURITY
+-- DEFINER so it bypasses RLS — the function itself enforces that
+-- created_by = auth.uid() by reading the JWT claim directly.
+create or replace function public.create_pet_with_owner(
+  p_name text,
+  p_species text default 'dog',
+  p_breed text default null,
+  p_birthday date default null,
+  p_weight_lbs decimal default null,
+  p_photo_url text default null
+) returns public.pets
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_pet public.pets;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  insert into public.pets (name, species, breed, birthday, weight_lbs, photo_url, created_by)
+  values (p_name, p_species, p_breed, p_birthday, p_weight_lbs, p_photo_url, v_user_id)
+  returning * into v_pet;
+
+  insert into public.pet_shares (pet_id, user_id, role, accepted_at)
+  values (v_pet.id, v_user_id, 'owner', now());
+
+  return v_pet;
+end;
+$$;
+
+grant execute on function public.create_pet_with_owner(text, text, text, date, decimal, text) to authenticated;
 
 -- ========================================================================
 -- Row Level Security

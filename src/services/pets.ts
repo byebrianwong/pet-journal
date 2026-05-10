@@ -19,37 +19,22 @@ export async function createPet(params: {
   weight_lbs?: number;
   photo_url?: string;
 }): Promise<Pet> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  // Atomic: create_pet_with_owner inserts the pet AND the owner share in
+  // one transaction, with created_by set server-side from auth.uid(). This
+  // avoids a class of failures where PostgREST or column-level grants caused
+  // the client-supplied created_by to be silently dropped, then RLS would
+  // reject "NULL = auth.uid()".
+  const { data, error } = await supabase.rpc('create_pet_with_owner', {
+    p_name: params.name,
+    p_species: params.species ?? 'dog',
+    p_breed: params.breed ?? null,
+    p_birthday: params.birthday ?? null,
+    p_weight_lbs: params.weight_lbs ?? null,
+    p_photo_url: params.photo_url ?? null,
+  });
 
-  const { data: pet, error: petError } = await supabase
-    .from('pets')
-    .insert({
-      name: params.name,
-      species: params.species ?? 'dog',
-      breed: params.breed ?? null,
-      birthday: params.birthday ?? null,
-      weight_lbs: params.weight_lbs ?? null,
-      photo_url: params.photo_url ?? null,
-      created_by: user.id,
-    })
-    .select()
-    .single();
-
-  if (petError) throw petError;
-
-  // Auto-create owner share
-  const { error: shareError } = await supabase
-    .from('pet_shares')
-    .insert({
-      pet_id: pet.id,
-      user_id: user.id,
-      role: 'owner',
-      accepted_at: new Date().toISOString(),
-    });
-
-  if (shareError) throw shareError;
-  return pet;
+  if (error) throw error;
+  return data as Pet;
 }
 
 export async function getPetShares(petId: string): Promise<(PetShare & { user: { display_name: string; avatar_url: string | null } })[]> {
