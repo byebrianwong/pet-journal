@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 
 import { colors } from '../utils/colors';
 import { notify } from '../utils/feedback';
 import { createPet } from '../services/pets';
+import { usePets } from '../state/PetContext';
 
 export function AddPetScreen({ navigation }: any) {
+  const { refresh, setCurrentPetId } = usePets();
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [birthday, setBirthday] = useState('');
@@ -19,17 +21,18 @@ export function AddPetScreen({ navigation }: any) {
 
     setSaving(true);
     try {
-      await createPet({
+      const newPet = await createPet({
         name: name.trim(),
         species: 'dog',
         breed: breed.trim() || undefined,
         birthday: birthday.trim() || undefined,
         weight_lbs: weight ? parseFloat(weight) : undefined,
       });
-      // If we got here from somewhere (e.g. Profile → "Add another pet"),
-      // pop back to that. Otherwise (first-run AddPet from Timeline empty
-      // state, no real history), replace with Main so the user lands on
-      // their new pet's timeline rather than re-seeing the empty state.
+      // Pull the new pet into context so it shows up everywhere, and
+      // make it the active pet so the user lands on its timeline.
+      await refresh();
+      setCurrentPetId(newPet.id);
+
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {

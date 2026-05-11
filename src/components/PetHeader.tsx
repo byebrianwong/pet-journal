@@ -13,13 +13,24 @@ interface Props {
   shares: (PetShare & { user: { display_name: string; avatar_url: string | null } })[];
   fiStatus?: { connected: boolean; steps?: number };
   onMenu?: () => void;
+  /**
+   * Tap target on the avatar+name area. Opens the pet switcher in the
+   * normal app flow; can be omitted for read-only / Storybook usage.
+   */
+  onPressPet?: () => void;
+  /**
+   * If true (default when onPressPet is wired), show a tiny "switch" hint
+   * next to the breed line so the affordance is discoverable.
+   */
+  showSwitchHint?: boolean;
 }
 
-export function PetHeader({ pet, shares, fiStatus, onMenu }: Props) {
+export function PetHeader({ pet, shares, fiStatus, onMenu, onPressPet, showSwitchHint }: Props) {
   const age = pet.birthday ? getAge(pet.birthday) : null;
+  const showHint = showSwitchHint ?? !!onPressPet;
 
-  return (
-    <View style={styles.container}>
+  const PetBlock = (
+    <>
       <View style={styles.avatarRing}>
         {pet.photo_url ? (
           <Image source={{ uri: pet.photo_url }} style={styles.avatarImage} />
@@ -29,9 +40,11 @@ export function PetHeader({ pet, shares, fiStatus, onMenu }: Props) {
           </View>
         )}
       </View>
-
       <View style={styles.info}>
-        <Text style={styles.name}>{pet.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{pet.name}</Text>
+          {showHint && <Text style={styles.switchHint}>⌄</Text>}
+        </View>
         <Text style={styles.details}>
           {[pet.breed, age, pet.weight_lbs ? `${pet.weight_lbs} lbs` : null]
             .filter(Boolean)
@@ -43,6 +56,18 @@ export function PetHeader({ pet, shares, fiStatus, onMenu }: Props) {
           </Text>
         )}
       </View>
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      {onPressPet ? (
+        <TouchableOpacity style={styles.tapZone} onPress={onPressPet} activeOpacity={0.7}>
+          {PetBlock}
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.tapZone}>{PetBlock}</View>
+      )}
 
       {onMenu ? (
         <TouchableOpacity style={styles.action} onPress={onMenu}>
@@ -114,12 +139,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   avatarEmoji: { fontSize: 26 },
+  tapZone: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   info: { marginLeft: 14, flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: {
     fontFamily: fonts.serifBold,
     fontSize: 22,
     color: colors.text,
     letterSpacing: -0.4,
+  },
+  switchHint: {
+    fontFamily: fonts.sansBold,
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   details: {
     fontFamily: fonts.serif,
