@@ -1,12 +1,31 @@
-import React, { useEffect, useState, useCallback } from 'react';
+/**
+ * Home screen — Living Journal V2 layout.
+ *
+ *   ┌──────────────────────────────┐
+ *   │  PetHeader (real photo)       │
+ *   │  "Tuesday, May 10" (cursive)  │
+ *   │  HeatmapStrip (2 weeks)       │
+ *   ├──────────────────────────────┤
+ *   │  FeedList                     │
+ *   │    SuggestionCards (today)    │
+ *   │    EntryCards (today/recent)  │
+ *   ├──────────────────────────────┤
+ *   │  QuickCaptureSheet (footer)   │
+ *   ├──────────────────────────────┤
+ *   │  Tab bar                      │
+ *   └──────────────────────────────┘
+ */
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../utils/colors';
+import { colors, fonts } from '../utils/colors';
 import { notify } from '../utils/feedback';
-import { groupByDate } from '../utils/dates';
+import { summarizeDays } from '../utils/dayIcons';
 import { PetHeader } from '../components/PetHeader';
+import { HeatmapStrip } from '../components/HeatmapStrip';
+import { SuggestionCard } from '../components/SuggestionCard';
 import { MemoryCard } from '../components/cards/MemoryCard';
 import { VetVisitCard } from '../components/cards/VetVisitCard';
 import { FiActivityCard } from '../components/cards/FiActivityCard';
@@ -16,13 +35,15 @@ import { getTimelineEvents, createTimelineEvent } from '../services/timeline';
 import { getMyPets, getPetShares, getMedications } from '../services/pets';
 import { useFiSync } from '../hooks/useFiSync';
 import { useRealtimeTimeline } from '../hooks/useRealtimeTimeline';
-import { fiCollar } from '../services/fi-collar';
 import type { TimelineEvent, Pet, PetShare, Medication } from '../types/database';
 
 type ListItem =
-  | { type: 'date'; label: string }
-  | { type: 'reminder'; medication: Medication }
-  | { type: 'event'; event: TimelineEvent };
+  | { type: 'header'; key: string; label: string; cursive?: boolean }
+  | { type: 'suggestion'; key: string; node: React.ReactNode }
+  | { type: 'reminder'; key: string; medication: Medication }
+  | { type: 'event'; key: string; event: TimelineEvent };
+
+const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
 export function TimelineScreen({ navigation }: any) {
   const [pet, setPet] = useState<Pet | null>(null);
@@ -31,14 +52,11 @@ export function TimelineScreen({ navigation }: any) {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [fiStatus, setFiStatus] = useState<{ connected: boolean; steps?: number }>({ connected: false });
 
   const loadData = useCallback(async () => {
     try {
       const pets = await getMyPets();
       if (pets.length === 0) {
-        // Render empty state inline (handled below). Don't navigation.replace
-        // — that destroys the back stack and traps the user on AddPet.
         setPet(null);
         setShares([]);
         setEvents([]);
@@ -54,31 +72,18 @@ export function TimelineScreen({ navigation }: any) {
         getTimelineEvents(currentPet.id),
         getMedications(currentPet.id),
       ]);
-
       setShares(sharesData);
       setEvents(eventsData);
       setMedications(medsData);
-
-      // Check Fi status
-      const fiConfigured = await fiCollar.isConfigured();
-      if (fiConfigured) {
-        const todayFi = eventsData.find(e => e.event_type === 'fi_activity');
-        const steps = todayFi ? (todayFi.metadata as any)?.steps : undefined;
-        setFiStatus({ connected: true, steps });
-      }
     } catch (err: any) {
-      notify('Error', err.message);
+      notify('Error', err?.message ?? 'Could not load your timeline.');
     } finally {
       setLoading(false);
     }
-  }, [navigation]);
+  }, []);
 
-  // Sync Fi Collar data on foreground
   useFiSync(pet?.id ?? null);
-
-  // Live updates when partner adds entries
   useRealtimeTimeline(pet?.id ?? null, loadData);
-
   useEffect(() => { loadData(); }, [loadData]);
 
   const onRefresh = useCallback(async () => {
@@ -86,6 +91,8 @@ export function TimelineScreen({ navigation }: any) {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
+
+  const summaries = useMemo(() => summarizeDays(events), [events]);
 
   const handleMarkMedDone = useCallback(async (med: Medication) => {
     if (!pet) return;
@@ -95,31 +102,51 @@ export function TimelineScreen({ navigation }: any) {
         eventType: 'medication_log',
         eventDate: new Date().toISOString(),
         title: med.name,
-        metadata: { medication_id: med.id, dosage: med.dosage },
+        metadata: { medication_id: med.id, dosage: med.dosage, frequency: med.frequency },
       });
       await loadData();
     } catch (err: any) {
-      notify('Error', err.message);
+      notify('Error', err?.message);
     }
   }, [pet, loadData]);
 
-  // Build flat list data: reminders at top, then date-grouped events
-  const listData: ListItem[] = [];
+  // Build list data
+  const listData: ListItem[] = useMemo(() => {
+    if (!pet) return [];
+    const items: ListItem[] = [];
 
-  if (medications.length > 0) {
-    listData.push({ type: 'date', label: 'Reminders' });
-    for (const med of medications) {
-      listData.push({ type: 'reminder', medication: med });
+    // Today's suggestion + reminders
+    const dueMeds = medications.filter(m => !m.end_date);
+    if (dueMeds.length > 0) {
+      items.push({ type: 'header', key: 'h-today', label: 'Today', cursive: true });
+      for (const med of dueMeds) {
+        items.push({ type: 'reminder', key: `rem-${med.id}`, medication: med });
+      }
     }
-  }
 
-  const grouped = groupByDate(events);
-  for (const [label, groupEvents] of grouped) {
-    listData.push({ type: 'date', label });
-    for (const event of groupEvents) {
-      listData.push({ type: 'event', event });
+    // Recent events grouped by relative day
+    const today = new Date().toISOString().split('T')[0];
+    const todaysEvents = events.filter(e => e.event_date.startsWith(today));
+    const olderEvents = events.filter(e => !e.event_date.startsWith(today));
+
+    if (todaysEvents.length > 0) {
+      if (dueMeds.length === 0) {
+        items.push({ type: 'header', key: 'h-today', label: 'Today', cursive: true });
+      }
+      for (const event of todaysEvents) {
+        items.push({ type: 'event', key: `evt-${event.id}`, event });
+      }
     }
-  }
+
+    if (olderEvents.length > 0) {
+      items.push({ type: 'header', key: 'h-recent', label: 'Recently' });
+      for (const event of olderEvents.slice(0, 20)) {
+        items.push({ type: 'event', key: `evt-${event.id}`, event });
+      }
+    }
+
+    return items;
+  }, [pet, medications, events]);
 
   if (loading) {
     return (
@@ -129,63 +156,65 @@ export function TimelineScreen({ navigation }: any) {
     );
   }
 
-  // No pets yet — show a friendly first-run CTA instead of redirecting to AddPet.
+  // No pets yet — first-run state
   if (!pet) {
     return (
       <SafeAreaView style={[styles.container, styles.center]} edges={['top']}>
         <Text style={styles.firstRunEmoji}>🐾</Text>
         <Text style={styles.firstRunTitle}>Welcome to Pet Journal</Text>
-        <Text style={styles.firstRunSubtitle}>
-          Add your first pet to start their timeline.
-        </Text>
-        <TouchableOpacity
-          style={styles.firstRunButton}
-          onPress={() => navigation.navigate('AddPet')}
-        >
+        <Text style={styles.firstRunSubtitle}>Add your first pet to start their timeline.</Text>
+        <TouchableOpacity style={styles.firstRunButton} onPress={() => navigation.navigate('AddPet')}>
           <Text style={styles.firstRunButtonText}>Add a Pet</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
+  const renderItem = ({ item }: { item: ListItem }) => {
+    if (item.type === 'header') {
+      return (
+        <Text style={[styles.sectionLabel, item.cursive && styles.sectionLabelCursive]}>
+          {item.label}
+        </Text>
+      );
+    }
+    if (item.type === 'reminder') {
+      return <MedicationReminderCard medication={item.medication} onMarkDone={handleMarkMedDone} />;
+    }
+    if (item.type === 'event') {
+      const e = item.event;
+      switch (e.event_type) {
+        case 'memory':
+          return <MemoryCard event={e} />;
+        case 'vet_visit':
+          return <VetVisitCard event={e} />;
+        case 'fi_activity':
+          return <FiActivityCard event={e} />;
+        case 'medication_log':
+          return <MedicationLogCard event={e} />;
+      }
+    }
+    if (item.type === 'suggestion') {
+      return <>{item.node}</>;
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {pet && <PetHeader pet={pet} shares={shares} fiStatus={fiStatus} />}
+      <PetHeader pet={pet} shares={shares} />
+      <Text style={styles.dateStamp}>{TODAY_LABEL}</Text>
+
+      <HeatmapStrip
+        summaries={summaries}
+        weeks={2}
+        onViewAll={() => navigation.navigate('Heatmap')}
+      />
 
       <FlatList
         data={listData}
-        keyExtractor={(item, index) => {
-          if (item.type === 'date') return `date-${item.label}-${index}`;
-          if (item.type === 'reminder') return `rem-${item.medication.id}`;
-          return `evt-${item.event.id}`;
-        }}
-        renderItem={({ item }) => {
-          if (item.type === 'date') {
-            return <Text style={styles.dateLabel}>{item.label}</Text>;
-          }
-          if (item.type === 'reminder') {
-            return (
-              <MedicationReminderCard
-                medication={item.medication}
-                onMarkDone={handleMarkMedDone}
-              />
-            );
-          }
-
-          const { event } = item;
-          switch (event.event_type) {
-            case 'memory':
-              return <MemoryCard event={event} />;
-            case 'vet_visit':
-              return <VetVisitCard event={event} />;
-            case 'fi_activity':
-              return <FiActivityCard event={event} />;
-            case 'medication_log':
-              return <MedicationLogCard event={event} />;
-            default:
-              return null;
-          }
-        }}
+        keyExtractor={(item) => item.key}
+        renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -193,17 +222,15 @@ export function TimelineScreen({ navigation }: any) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>📖</Text>
-            <Text style={styles.emptyTitle}>No entries yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap + to add your first memory or vet visit
-            </Text>
+            <Text style={styles.emptyTitle}>No entries yet today</Text>
+            <Text style={styles.emptySubtitle}>Tap + to log a moment or training.</Text>
           </View>
         }
       />
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('AddEntry', { petId: pet?.id })}
+        onPress={() => navigation.navigate('AddEntry', { petId: pet.id })}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -214,21 +241,39 @@ export function TimelineScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { alignItems: 'center', justifyContent: 'center' },
-  loadingText: { color: colors.textMuted, fontSize: 16 },
-  list: { padding: 16, paddingBottom: 100 },
-  dateLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+  dateStamp: {
+    marginHorizontal: 22,
+    marginBottom: 8,
+    fontFamily: fonts.cursive,
+    fontSize: 20,
+    color: colors.primary,
+    transform: [{ rotate: '-0.5deg' }],
+  },
+  list: { paddingHorizontal: 16, paddingBottom: 100 },
+  sectionLabel: {
+    fontFamily: fonts.serifBold,
+    fontSize: 11,
+    fontStyle: 'italic',
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 16,
+    letterSpacing: 1.2,
+    marginTop: 12,
     marginBottom: 8,
+  },
+  sectionLabelCursive: {
+    fontFamily: fonts.cursive,
+    fontSize: 18,
+    color: colors.primary,
+    fontStyle: 'normal',
+    textTransform: 'none',
+    letterSpacing: 0,
+    marginTop: 4,
+    marginBottom: 4,
   },
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: colors.text },
-  emptySubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+  emptyTitle: { fontFamily: fonts.serifBold, fontSize: 18, color: colors.text },
+  emptySubtitle: { fontFamily: fonts.serif, fontStyle: 'italic', fontSize: 13, color: colors.textMuted, marginTop: 4 },
   fab: {
     position: 'absolute',
     bottom: 100,
@@ -247,19 +292,15 @@ const styles = StyleSheet.create({
   },
   fabText: { fontSize: 28, color: '#fff', marginTop: -2 },
   firstRunEmoji: { fontSize: 64, marginBottom: 16 },
-  firstRunTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  firstRunTitle: { fontFamily: fonts.serifBold, fontSize: 22, color: colors.text, marginBottom: 8 },
   firstRunSubtitle: {
-    fontSize: 15,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 32,
+    fontFamily: fonts.serif, fontStyle: 'italic',
+    fontSize: 15, color: colors.textMuted, textAlign: 'center',
+    marginBottom: 24, paddingHorizontal: 32,
   },
   firstRunButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
+    paddingHorizontal: 32, paddingVertical: 14, borderRadius: 24,
   },
-  firstRunButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  firstRunButtonText: { color: '#fff', fontFamily: fonts.sansBold, fontSize: 16 },
 });

@@ -5,6 +5,21 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Session } from '@supabase/supabase-js';
+import {
+  useFonts as useFraunces,
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+} from '@expo-google-fonts/fraunces';
+import {
+  Caveat_400Regular,
+  Caveat_700Bold,
+} from '@expo-google-fonts/caveat';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { supabase } from './src/services/supabase';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TimelineScreen } from './src/screens/TimelineScreen';
@@ -15,6 +30,7 @@ import { SharingScreen } from './src/screens/SharingScreen';
 import { PetProfileScreen } from './src/screens/PetProfileScreen';
 import { FiSetupScreen } from './src/screens/FiSetupScreen';
 import { AcceptInviteScreen } from './src/screens/AcceptInviteScreen';
+import { HeatmapScreen } from './src/screens/HeatmapScreen';
 import { addNotificationResponseListener } from './src/services/notifications';
 import { colors } from './src/utils/colors';
 import * as Linking from 'expo-linking';
@@ -230,6 +246,16 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(SUPABASE_CONFIGURED);
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
+  const [fontsLoaded] = useFraunces({
+    Fraunces_500Medium,
+    Fraunces_600SemiBold,
+    Caveat_400Regular,
+    Caveat_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
     if (!SUPABASE_CONFIGURED) return;
@@ -268,6 +294,7 @@ export default function App() {
 
   if (!SUPABASE_CONFIGURED) return <SetupRequiredScreen />;
   if (loading) return null;
+  if (!fontsLoaded) return null;
 
   const linking = {
     prefixes: [Linking.createURL('/'), 'petjournal://'],
@@ -299,6 +326,7 @@ export default function App() {
             <Stack.Screen name="Sharing" component={SharingScreen} options={{ title: 'Sharing' }} />
             <Stack.Screen name="FiSetup" component={FiSetupScreen} options={{ title: 'Fi Collar' }} />
             <Stack.Screen name="AcceptInvite" component={AcceptInviteScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Heatmap" component={HeatmapScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />

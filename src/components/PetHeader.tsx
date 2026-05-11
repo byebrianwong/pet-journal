@@ -1,24 +1,32 @@
+/**
+ * Pet header for the Living Journal aesthetic. Real photo avatar
+ * (or 🐕 emoji fallback), serif name, italic breed/age subtitle,
+ * trailing menu / family avatars.
+ */
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { colors } from '../utils/colors';
-import type { Pet, PetShare, UserProfile } from '../types/database';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { colors, fonts } from '../utils/colors';
+import type { Pet, PetShare } from '../types/database';
 
 interface Props {
   pet: Pet;
   shares: (PetShare & { user: { display_name: string; avatar_url: string | null } })[];
   fiStatus?: { connected: boolean; steps?: number };
+  onMenu?: () => void;
 }
 
-export function PetHeader({ pet, shares, fiStatus }: Props) {
+export function PetHeader({ pet, shares, fiStatus, onMenu }: Props) {
   const age = pet.birthday ? getAge(pet.birthday) : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.avatar}>
+      <View style={styles.avatarRing}>
         {pet.photo_url ? (
           <Image source={{ uri: pet.photo_url }} style={styles.avatarImage} />
         ) : (
-          <Text style={styles.avatarEmoji}>🐕</Text>
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarEmoji}>🐕</Text>
+          </View>
         )}
       </View>
 
@@ -27,27 +35,33 @@ export function PetHeader({ pet, shares, fiStatus }: Props) {
         <Text style={styles.details}>
           {[pet.breed, age, pet.weight_lbs ? `${pet.weight_lbs} lbs` : null]
             .filter(Boolean)
-            .join(' · ')}
+            .join(' · ') || 'no details yet'}
         </Text>
         {fiStatus?.connected && (
-          <View style={styles.fiRow}>
-            <View style={styles.fiDot} />
-            <Text style={styles.fiText}>
-              Fi connected{fiStatus.steps != null ? ` · ${fiStatus.steps.toLocaleString()} steps today` : ''}
-            </Text>
-          </View>
+          <Text style={styles.fiText}>
+            • Fi connected{fiStatus.steps != null ? ` · ${fiStatus.steps.toLocaleString()} steps` : ''}
+          </Text>
         )}
       </View>
 
-      <View style={styles.avatars}>
-        {shares.map((share) => (
-          <View key={share.id} style={[styles.familyAvatar, { backgroundColor: stringToColor(share.user.display_name ?? '') }]}>
-            <Text style={styles.familyInitial}>
-              {(share.user.display_name ?? '?')[0].toUpperCase()}
-            </Text>
-          </View>
-        ))}
-      </View>
+      {onMenu ? (
+        <TouchableOpacity style={styles.action} onPress={onMenu}>
+          <Text style={styles.actionText}>⋯</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.avatars}>
+          {shares.slice(0, 3).map(share => (
+            <View
+              key={share.id}
+              style={[styles.familyAvatar, { backgroundColor: stringToColor(share.user.display_name ?? '') }]}
+            >
+              <Text style={styles.familyInitial}>
+                {(share.user.display_name ?? '?')[0].toUpperCase()}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -57,48 +71,80 @@ function getAge(birthday: string): string {
   const now = new Date();
   const years = now.getFullYear() - birth.getFullYear();
   if (years === 0) {
-    const months = now.getMonth() - birth.getMonth();
-    return `${Math.max(1, months)} mo`;
+    const months = Math.max(1, now.getMonth() - birth.getMonth() + (now.getDate() < birth.getDate() ? -1 : 0));
+    return `${months} mo`;
   }
-  return `${years} yr${years !== 1 ? 's' : ''}`;
+  return `${years} ${years === 1 ? 'year' : 'years'}`;
 }
 
 function stringToColor(str: string): string {
-  const pastelColors = ['#dbc4f0', '#c4daf0', '#f0d4c4', '#c4f0d4', '#f0eac4'];
+  const pastels = ['#dbc4f0', '#c4daf0', '#f0d4c4', '#c4f0d4', '#f0eac4'];
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return pastelColors[Math.abs(hash) % pastelColors.length];
+  return pastels[Math.abs(hash) % pastels.length];
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    paddingHorizontal: 20,
-    backgroundColor: colors.primaryLight,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderStrong,
+    paddingTop: 10,
+    paddingHorizontal: 22,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+  avatarRing: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: colors.background,
+    overflow: 'hidden',
+    backgroundColor: colors.accent,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+  },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarFallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    backgroundColor: colors.accent,
   },
-  avatarImage: { width: 56, height: 56 },
-  avatarEmoji: { fontSize: 28 },
+  avatarEmoji: { fontSize: 26 },
   info: { marginLeft: 14, flex: 1 },
-  name: { fontSize: 20, fontWeight: '700', color: colors.text },
-  details: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  fiRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  fiDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.fi, marginRight: 4 },
-  fiText: { fontSize: 11, color: colors.fi },
+  name: {
+    fontFamily: fonts.serifBold,
+    fontSize: 22,
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+  details: {
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  fiText: {
+    fontFamily: fonts.sans,
+    fontSize: 11,
+    color: colors.fi,
+    marginTop: 2,
+  },
+  action: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: { fontSize: 16, color: colors.textMuted, marginTop: -4 },
   avatars: { flexDirection: 'row' },
   familyAvatar: {
     width: 28,
@@ -110,5 +156,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: -8,
   },
-  familyInitial: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  familyInitial: { fontSize: 12, fontWeight: '600', color: '#fff', fontFamily: fonts.sansBold },
 });
