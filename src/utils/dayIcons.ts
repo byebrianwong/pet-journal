@@ -59,34 +59,39 @@ export function dateKey(d: Date | string): string {
 }
 
 /**
- * Classify a single event into a DayIcon. If the event metadata flags a
- * tough moment (e.g. reaction_count > 0), return 'reaction'.
+ * Classify a single event into a DayIcon. Order of escalation:
+ *   milestone > tough_moment > entry_kind override > event_type default
+ *
+ * Tough moments win regardless of underlying type — a "training around
+ * family with one reaction" entry is a training+tough_moment combo and
+ * shows as ⚠️ on the heatmap, not 🎯. That's the whole point of the
+ * tough-moment flag — to make hard days visible without forcing the
+ * user to count reactions per session.
  */
 export function classifyEvent(event: TimelineEvent): DayIcon {
-  // Milestones get explicit metadata flag
-  if ((event.metadata as any)?.is_milestone) return 'milestone';
+  const meta = (event.metadata ?? {}) as any;
 
-  // Training events default to 'training' but escalate to 'reaction' if
-  // the user marked a tough moment in the entry.
-  if (event.event_type === 'medication_log') {
-    // Daily meds shouldn't flood the calendar — only non-daily count.
-    const isDaily = (event.metadata as any)?.frequency === 'daily';
-    return isDaily ? 'photo' : 'med';
+  // 1. Milestones always win.
+  if (meta.is_milestone) return 'milestone';
+
+  // 2. Tough moments escalate any event type to 'reaction'.
+  if (meta.tough_moment === true || (typeof meta.reaction_count === 'number' && meta.reaction_count > 0)) {
+    return 'reaction';
   }
 
-  // Vet visits are a kind of medication/health event for the day icon.
+  // 3. Type-specific defaults.
+  if (event.event_type === 'medication_log') {
+    // Daily meds shouldn't flood the calendar — only non-daily count.
+    const isDaily = meta.frequency === 'daily';
+    return isDaily ? 'photo' : 'med';
+  }
   if (event.event_type === 'vet_visit') return 'med';
-
-  // Fi activity counts as 'activity' (the outing icon).
   if (event.event_type === 'fi_activity') return 'activity';
 
-  // Memory events — escalate to 'reaction' if the user marked it tough.
+  // 4. Memory entries can be tagged with an entry_kind override.
   if (event.event_type === 'memory') {
-    const meta = event.metadata as any;
-    if (meta?.tough_moment || meta?.reaction_count > 0) return 'reaction';
-    // 'activity' if the memory is tagged as an outing/walk.
-    if (meta?.entry_kind === 'training') return 'training';
-    if (meta?.entry_kind === 'outing') return 'activity';
+    if (meta.entry_kind === 'training') return 'training';
+    if (meta.entry_kind === 'outing') return 'activity';
     return 'photo';
   }
 
