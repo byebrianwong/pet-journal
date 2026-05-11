@@ -1,32 +1,36 @@
 /**
  * Computes the home-feed suggestion cards shown above the journal entries.
  *
- * V1 of this engine is rule-based, server-data only — no camera-roll or
- * location detection yet. Those land when we wire up expo-media-library
- * and expo-location. For now the engine covers:
+ * Rule-based, no ML. Three kinds today:
  *
- *   - Medication overdue: a `medications` row with no `medication_log`
+ *   - photo_cluster: a group of camera-roll photos taken recently
+ *     (within 24h) that haven't been added to the journal yet.
+ *     Source: expo-media-library via src/services/camera-roll.ts.
+ *   - medication_due: a `medications` row with no `medication_log`
  *     event in the last `frequency`-interval window.
- *   - Empty-day nudge: no entries today and the user has been logging
+ *   - empty_day_nudge: no entries today and the user has been logging
  *     recently. Soft prompt to capture a moment.
  *
  * Each suggestion is a plain data object the screen renders via the
  * SuggestionCard component.
  */
 import type { Medication, TimelineEvent } from '../types/database';
+import type { PhotoCluster } from '../services/camera-roll';
 
-export type SuggestionKind = 'medication_due' | 'empty_day_nudge';
+export type SuggestionKind = 'medication_due' | 'empty_day_nudge' | 'photo_cluster';
 
 export interface Suggestion {
   id: string;                 // stable key for the FlatList
   kind: SuggestionKind;
   title: string;
   subtitle: string;
-  thumbnailEmoji: string;
+  thumbnailEmoji?: string;
+  thumbnailUri?: string;      // when present, preferred over emoji
   thumbnailKind: 'photo' | 'med' | 'training';
   primaryLabel: string;
   // Embedded payload the screen can use when the user accepts.
   medication?: Medication;
+  photoCluster?: PhotoCluster;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -66,10 +70,36 @@ function lastGivenLabel(lastMs: number, now: number): string {
 export function computeSuggestions(input: {
   medications: Medication[];
   events: TimelineEvent[];
+  photoClusters?: PhotoCluster[];
   now?: Date;
 }): Suggestion[] {
   const now = (input.now ?? new Date()).getTime();
   const out: Suggestion[] = [];
+
+  // ---- Photo clusters from the camera roll ----
+  // Cap at 2 so the suggestion lane doesn't get spammed by burst-photo
+  // mornings. Most-recent cluster first.
+  for (const cluster of (input.photoClusters ?? []).slice(0, 2)) {
+    // Don't suggest if we've already linked one of these photos to an
+    // existing event — naive check by exact URI in event metadata.
+    const used = input.events.some(e =>
+      cluster.assets.some(a => e.photo_url === a.uri || (e.metadata as any)?.local_uri === a.uri)
+    );
+    if (used) continue;
+
+    out.push({
+      id: `photo-${cluster.id}`,
+      kind: 'photo_cluster',
+      title: cluster.label,
+      subtitle: cluster.centroidLocation
+        ? 'Tap to add as a memory'
+        : 'New photos detected — add as a memory?',
+      thumbnailUri: cluster.assets[0]?.uri,
+      thumbnailKind: 'photo',
+      primaryLabel: 'Add',
+      photoCluster: cluster,
+    });
+  }
 
   // ---- Medication overdue ----
   // Only surface non-daily meds (daily reminders are handled by the

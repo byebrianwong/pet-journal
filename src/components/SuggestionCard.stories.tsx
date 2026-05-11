@@ -33,6 +33,16 @@ export const MedicationDue: Story = {
   },
 };
 
+export const PhotoCluster: Story = {
+  args: {
+    title: '4 photos from this afternoon',
+    subtitle: 'Tap to add as a memory',
+    thumbnailUri: 'https://placedog.net/120/120?id=420',
+    primaryLabel: 'Add',
+    secondaryLabel: 'Skip',
+  },
+};
+
 export const TrainingHint: Story = {
   args: {
     title: 'Quick training log?',

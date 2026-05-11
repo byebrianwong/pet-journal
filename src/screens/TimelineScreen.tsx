@@ -24,6 +24,7 @@ import { colors, fonts } from '../utils/colors';
 import { notify } from '../utils/feedback';
 import { summarizeDays } from '../utils/dayIcons';
 import { computeSuggestions, type Suggestion } from '../utils/suggestions';
+import { getRecentPhotos, clusterPhotos, type PhotoCluster } from '../services/camera-roll';
 import { PetHeader } from '../components/PetHeader';
 import { PetSwitcherSheet } from '../components/PetSwitcherSheet';
 import { usePets } from '../state/PetContext';
@@ -36,7 +37,7 @@ import { VetVisitCard } from '../components/cards/VetVisitCard';
 import { FiActivityCard } from '../components/cards/FiActivityCard';
 import { MedicationReminderCard } from '../components/cards/MedicationReminderCard';
 import { MedicationLogCard } from '../components/cards/MedicationLogCard';
-import { getTimelineEvents, createTimelineEvent } from '../services/timeline';
+import { getTimelineEvents, createTimelineEvent, uploadPhoto } from '../services/timeline';
 import { getPetShares, getMedications } from '../services/pets';
 import { useFiSync } from '../hooks/useFiSync';
 import { useRealtimeTimeline } from '../hooks/useRealtimeTimeline';
@@ -59,6 +60,7 @@ export function TimelineScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [photoClusters, setPhotoClusters] = useState<PhotoCluster[]>([]);
   const pet = currentPet;
 
   const loadData = useCallback(async () => {
@@ -97,9 +99,27 @@ export function TimelineScreen({ navigation }: any) {
 
   const summaries = useMemo(() => summarizeDays(events), [events]);
   const suggestions = useMemo(
-    () => computeSuggestions({ medications, events }),
-    [medications, events],
+    () => computeSuggestions({ medications, events, photoClusters }),
+    [medications, events, photoClusters],
   );
+
+  // Fire-and-forget camera-roll scan. No-op on web. Re-runs when the
+  // active pet changes so a freshly-switched pet doesn't show clusters
+  // already linked to another pet (though the in-engine dedupe handles
+  // most of that).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const assets = await getRecentPhotos(50);
+        if (cancelled) return;
+        setPhotoClusters(clusterPhotos(assets));
+      } catch {
+        // permission denied or library unavailable — just skip
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPetId]);
 
   const handleSuggestionPrimary = useCallback(async (s: Suggestion) => {
     if (!pet) return;
@@ -120,6 +140,35 @@ export function TimelineScreen({ navigation }: any) {
         await loadData();
       } catch (err: any) {
         notify('Error', err?.message);
+      }
+      return;
+    }
+    if (s.kind === 'photo_cluster' && s.photoCluster) {
+      const cluster = s.photoCluster;
+      const hero = cluster.assets[0];
+      if (!hero) return;
+      try {
+        // Upload the first photo to the pet's photos bucket. We could
+        // upload the whole burst, but the V1 UX shows one hero photo
+        // per memory — the user can add more from AddEntry later.
+        const photoUrl = await uploadPhoto(hero.uri, pet.id, 'photos');
+        await createTimelineEvent({
+          petId: pet.id,
+          eventType: 'memory',
+          eventDate: new Date(cluster.centroidTime).toISOString(),
+          title: cluster.label,
+          photoUrl,
+          metadata: {
+            entry_kind: 'outing',
+            source: 'camera_roll_suggestion',
+            local_uri: hero.uri,
+            cluster_size: cluster.assets.length,
+            location: cluster.centroidLocation,
+          } as any,
+        });
+        await loadData();
+      } catch (err: any) {
+        notify('Could not save memory', err?.message ?? 'Try again.');
       }
       return;
     }
@@ -274,6 +323,7 @@ export function TimelineScreen({ navigation }: any) {
         <SuggestionCard
           title={s.title}
           subtitle={s.subtitle}
+          thumbnailUri={s.thumbnailUri}
           thumbnailEmoji={s.thumbnailEmoji}
           thumbnailKind={s.thumbnailKind}
           primaryLabel={s.primaryLabel}
