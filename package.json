@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "chromatic": "chromatic --exit-zero-on-changes"
   },
   "dependencies": {
     "@expo-google-fonts/caveat": "^0.4.2",
@@ -45,6 +46,7 @@
     "@storybook/test": "^8.6.18",
     "@types/react": "~19.1.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "chromatic": "^16.9.1",
     "storybook": "^8.6.18",
     "typescript": "~5.9.2",
     "vite": "^5.4.21"
