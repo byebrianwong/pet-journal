@@ -86,6 +86,31 @@ export const RemindersOnly: Story = {
   },
 };
 
+export const OverdueMedSuggestion: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      // No medication_log events for Heartgard recently → suggestion fires
+      events: [],
+      medications: [
+        // Heartgard is monthly + start_date 40 days ago — should trigger
+        // "💊 Heartgard due today" suggestion above the feed.
+        {
+          ...fixtureMedications[1],
+          start_date: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        },
+      ],
+    },
+    docs: {
+      description: {
+        story:
+          'A monthly medication whose last log was >30 days ago. The smart-suggestion engine surfaces it as a SuggestionCard at the top of the feed, separate from the daily reminder list.',
+      },
+    },
+  },
+};
+
 export const HistoryNoFi: Story = {
   parameters: {
     mock: {

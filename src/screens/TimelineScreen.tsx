@@ -23,9 +23,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts } from '../utils/colors';
 import { notify } from '../utils/feedback';
 import { summarizeDays } from '../utils/dayIcons';
+import { computeSuggestions, type Suggestion } from '../utils/suggestions';
 import { PetHeader } from '../components/PetHeader';
 import { HeatmapStrip } from '../components/HeatmapStrip';
 import { SuggestionCard } from '../components/SuggestionCard';
+import { dateKey } from '../utils/dayIcons';
 import { QuickCaptureSheet, type QuickEntry } from '../components/QuickCaptureSheet';
 import { MemoryCard } from '../components/cards/MemoryCard';
 import { VetVisitCard } from '../components/cards/VetVisitCard';
@@ -40,7 +42,7 @@ import type { TimelineEvent, Pet, PetShare, Medication } from '../types/database
 
 type ListItem =
   | { type: 'header'; key: string; label: string; cursive?: boolean }
-  | { type: 'suggestion'; key: string; node: React.ReactNode }
+  | { type: 'suggestion'; key: string; suggestion: Suggestion }
   | { type: 'reminder'; key: string; medication: Medication }
   | { type: 'event'; key: string; event: TimelineEvent };
 
@@ -95,6 +97,37 @@ export function TimelineScreen({ navigation }: any) {
   }, [loadData]);
 
   const summaries = useMemo(() => summarizeDays(events), [events]);
+  const suggestions = useMemo(
+    () => computeSuggestions({ medications, events }),
+    [medications, events],
+  );
+
+  const handleSuggestionPrimary = useCallback(async (s: Suggestion) => {
+    if (!pet) return;
+    if (s.kind === 'medication_due' && s.medication) {
+      const med = s.medication;
+      try {
+        await createTimelineEvent({
+          petId: pet.id,
+          eventType: 'medication_log',
+          eventDate: new Date().toISOString(),
+          title: med.name,
+          metadata: {
+            medication_id: med.id,
+            dosage: med.dosage,
+            frequency: med.frequency,
+          } as any,
+        });
+        await loadData();
+      } catch (err: any) {
+        notify('Error', err?.message);
+      }
+      return;
+    }
+    if (s.kind === 'empty_day_nudge') {
+      setSheetExpanded(true);
+    }
+  }, [pet, loadData]);
 
   const handleQuickSave = useCallback(async (entry: QuickEntry) => {
     if (!pet) return;
@@ -164,9 +197,18 @@ export function TimelineScreen({ navigation }: any) {
     if (!pet) return [];
     const items: ListItem[] = [];
 
-    // Today's suggestion + reminders
+    // Smart suggestions go above everything else
+    if (suggestions.length > 0) {
+      items.push({ type: 'header', key: 'h-suggest', label: 'Suggested for you' });
+      for (const s of suggestions) {
+        items.push({ type: 'suggestion', key: s.id, suggestion: s });
+      }
+    }
+
+    // Today's daily-med reminders
     const dueMeds = medications.filter(m => !m.end_date);
-    if (dueMeds.length > 0) {
+    const hasDueMeds = dueMeds.length > 0;
+    if (hasDueMeds) {
       items.push({ type: 'header', key: 'h-today', label: 'Today', cursive: true });
       for (const med of dueMeds) {
         items.push({ type: 'reminder', key: `rem-${med.id}`, medication: med });
@@ -174,12 +216,12 @@ export function TimelineScreen({ navigation }: any) {
     }
 
     // Recent events grouped by relative day
-    const today = new Date().toISOString().split('T')[0];
-    const todaysEvents = events.filter(e => e.event_date.startsWith(today));
-    const olderEvents = events.filter(e => !e.event_date.startsWith(today));
+    const todayK = dateKey(new Date());
+    const todaysEvents = events.filter(e => dateKey(e.event_date) === todayK);
+    const olderEvents = events.filter(e => dateKey(e.event_date) !== todayK);
 
     if (todaysEvents.length > 0) {
-      if (dueMeds.length === 0) {
+      if (!hasDueMeds) {
         items.push({ type: 'header', key: 'h-today', label: 'Today', cursive: true });
       }
       for (const event of todaysEvents) {
@@ -195,7 +237,7 @@ export function TimelineScreen({ navigation }: any) {
     }
 
     return items;
-  }, [pet, medications, events]);
+  }, [pet, medications, events, suggestions]);
 
   if (loading) {
     return (
@@ -227,6 +269,19 @@ export function TimelineScreen({ navigation }: any) {
         </Text>
       );
     }
+    if (item.type === 'suggestion') {
+      const s = item.suggestion;
+      return (
+        <SuggestionCard
+          title={s.title}
+          subtitle={s.subtitle}
+          thumbnailEmoji={s.thumbnailEmoji}
+          thumbnailKind={s.thumbnailKind}
+          primaryLabel={s.primaryLabel}
+          onPrimary={() => handleSuggestionPrimary(s)}
+        />
+      );
+    }
     if (item.type === 'reminder') {
       return <MedicationReminderCard medication={item.medication} onMarkDone={handleMarkMedDone} />;
     }
@@ -242,9 +297,6 @@ export function TimelineScreen({ navigation }: any) {
         case 'medication_log':
           return <MedicationLogCard event={e} />;
       }
-    }
-    if (item.type === 'suggestion') {
-      return <>{item.node}</>;
     }
     return null;
   };
