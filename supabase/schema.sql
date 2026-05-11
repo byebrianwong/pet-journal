@@ -324,3 +324,71 @@ begin
     alter publication supabase_realtime add table timeline_events;
   end if;
 end $$;
+
+-- ========================================================================
+-- Storage buckets
+-- ========================================================================
+-- Two buckets: 'photos' (public read) for memory photos, 'receipts'
+-- (private) for vet receipt scans. Object names are namespaced by
+-- <pet_id>/<filename> so RLS scopes by pet share.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('photos',   'photos',   true,  10485760, array['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
+  ('receipts', 'receipts', false, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'image/heic'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- SECURITY DEFINER helper so storage policies don't trigger recursive
+-- RLS on pet_shares. Returns true if the calling user shares the pet
+-- whose UUID is the first path segment of the object name.
+create or replace function public.can_access_pet_storage(p_object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.pet_shares
+    where user_id = auth.uid()
+      and pet_id = (
+        case
+          when p_object_name ~ '^[0-9a-f-]+/'
+          then substring(p_object_name from '^([0-9a-f-]+)/')::uuid
+          else null
+        end
+      )
+  );
+$$;
+
+grant execute on function public.can_access_pet_storage(text) to authenticated;
+
+-- Storage RLS — clear old policies first so this is idempotent on re-runs.
+drop policy if exists "photos_read_public"   on storage.objects;
+drop policy if exists "photos_write_shared"  on storage.objects;
+drop policy if exists "photos_update_shared" on storage.objects;
+drop policy if exists "photos_delete_shared" on storage.objects;
+drop policy if exists "receipts_read_shared"   on storage.objects;
+drop policy if exists "receipts_write_shared"  on storage.objects;
+drop policy if exists "receipts_update_shared" on storage.objects;
+drop policy if exists "receipts_delete_shared" on storage.objects;
+
+create policy "photos_read_public" on storage.objects
+  for select using (bucket_id = 'photos');
+create policy "photos_write_shared" on storage.objects
+  for insert with check (bucket_id = 'photos' and can_access_pet_storage(name));
+create policy "photos_update_shared" on storage.objects
+  for update using (bucket_id = 'photos' and can_access_pet_storage(name));
+create policy "photos_delete_shared" on storage.objects
+  for delete using (bucket_id = 'photos' and can_access_pet_storage(name));
+
+create policy "receipts_read_shared" on storage.objects
+  for select using (bucket_id = 'receipts' and can_access_pet_storage(name));
+create policy "receipts_write_shared" on storage.objects
+  for insert with check (bucket_id = 'receipts' and can_access_pet_storage(name));
+create policy "receipts_update_shared" on storage.objects
+  for update using (bucket_id = 'receipts' and can_access_pet_storage(name));
+create policy "receipts_delete_shared" on storage.objects
+  for delete using (bucket_id = 'receipts' and can_access_pet_storage(name));

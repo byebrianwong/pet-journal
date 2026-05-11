@@ -97,7 +97,7 @@ export function AddEntryScreen({ route, navigation }: any) {
     try {
       let photoUrl: string | undefined;
       if (photoUri) {
-        photoUrl = await uploadPhoto(photoUri);
+        photoUrl = await uploadPhoto(photoUri, petId, 'photos');
       }
 
       await createTimelineEvent({
@@ -122,7 +122,7 @@ export function AddEntryScreen({ route, navigation }: any) {
     try {
       let receiptUrl: string | undefined;
       if (receiptUri) {
-        receiptUrl = await uploadPhoto(receiptUri, 'receipts');
+        receiptUrl = await uploadPhoto(receiptUri, petId, 'receipts');
       }
 
       const metadata: VetVisitMetadata = {
