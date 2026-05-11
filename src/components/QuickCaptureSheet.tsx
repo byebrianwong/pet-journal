@@ -251,7 +251,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 80, // sits above the tab bar
+    // Tab navigator renders the tab bar OUTSIDE the screen content area, so
+    // the screen's SafeAreaView already ends at the tab-bar's top edge.
+    // bottom:0 makes the sheet sit flush against that edge — anything bigger
+    // leaves an awkward strip of background showing through.
+    bottom: 0,
     backgroundColor: colors.surfaceWarm,
     borderTopWidth: 1,
     borderTopColor: colors.borderStrong,

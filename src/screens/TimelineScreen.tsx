@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     transform: [{ rotate: '-0.5deg' }],
   },
-  list: { paddingHorizontal: 16, paddingBottom: 180 },
+  list: { paddingHorizontal: 16, paddingBottom: 100 },
   sectionLabel: {
     fontFamily: fonts.serifBold,
     fontSize: 11,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontFamily: fonts.serif, fontStyle: 'italic', fontSize: 13, color: colors.textMuted, marginTop: 4 },
   fab: {
     position: 'absolute',
-    bottom: 150,
+    bottom: 80,
     right: 24,
     width: 56,
     height: 56,
