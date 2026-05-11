@@ -21,8 +21,11 @@
  * modal that has to be summoned. The sheet has expanded/collapsed
  * states the screen orchestrates.
  */
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  Animated, PanResponder, Dimensions,
+} from 'react-native';
 import { colors, fonts } from '../utils/colors';
 import { notify } from '../utils/feedback';
 
@@ -57,6 +60,12 @@ const MEMORY_KINDS = ['Outing', 'Photo', 'Funny', 'Milestone'];
 
 const MED_OPTIONS = ['Flea & tick', 'Heartgard', 'Apoquel', '+ Other'];
 
+// Snap points are measured from the bottom of the sheet's container.
+// Collapsed = just the handle + hint row visible. Expanded = full sheet.
+const COLLAPSED_HEIGHT = 56;
+const EXPANDED_HEIGHT_MAX = Math.min(480, Math.round(Dimensions.get('window').height * 0.7));
+const DRAG_SNAP_THRESHOLD = 60; // px of drag that flips the snap point
+
 export function QuickCaptureSheet({ expanded, initialMode = 'training', onCollapse, onSave }: Props) {
   const [mode, setMode] = useState<QuickMode>(initialMode);
   const [cue, setCue] = useState<string | null>('Place');
@@ -67,6 +76,48 @@ export function QuickCaptureSheet({ expanded, initialMode = 'training', onCollap
   const [medName, setMedName] = useState<string | null>('Flea & tick');
   const [isRecurring, setIsRecurring] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // dragOffset: how far up (positive) or down (negative) the user has
+  // pulled the sheet from its current snap point during a gesture. We
+  // translate this directly into a height delta on the sheet container.
+  const dragOffset = useRef(new Animated.Value(0)).current;
+
+  const baseHeight = expanded ? EXPANDED_HEIGHT_MAX : COLLAPSED_HEIGHT;
+  const animatedHeight = Animated.add(
+    new Animated.Value(baseHeight),
+    dragOffset.interpolate({
+      inputRange: [-EXPANDED_HEIGHT_MAX, EXPANDED_HEIGHT_MAX],
+      outputRange: [-EXPANDED_HEIGHT_MAX, EXPANDED_HEIGHT_MAX],
+      extrapolate: 'clamp',
+    }),
+  );
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // Only claim the gesture if it's a vertical drag — let chip taps,
+      // ScrollView pans, etc. through.
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 6 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderMove: (_, gs) => {
+        // dy is positive when dragging DOWN. We want sheet height to
+        // shrink on drag-down → negate so the math reads naturally.
+        dragOffset.setValue(-gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const flipped =
+          (!expanded && -gs.dy > DRAG_SNAP_THRESHOLD) ||  // dragged up far enough → expand
+          (expanded && gs.dy > DRAG_SNAP_THRESHOLD);       // dragged down far enough → collapse
+        Animated.spring(dragOffset, {
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 4,
+        }).start();
+        if (flipped) onCollapse();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragOffset, { toValue: 0, useNativeDriver: false }).start();
+      },
+    }),
+  ).current;
 
   const toggleAround = (val: string) => {
     setAround(prev => (prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]));
@@ -91,15 +142,17 @@ export function QuickCaptureSheet({ expanded, initialMode = 'training', onCollap
   };
 
   return (
-    <View style={[styles.sheet, !expanded && styles.sheetCollapsed]}>
+    <Animated.View style={[styles.sheet, !expanded && styles.sheetCollapsed, { height: animatedHeight }]}>
       {!expanded ? (
-        <TouchableOpacity style={styles.collapsedRow} onPress={onCollapse}>
-          <View style={styles.handle} />
-          <Text style={styles.collapsedText}>Tap to log a moment</Text>
-        </TouchableOpacity>
+        <View {...panResponder.panHandlers}>
+          <TouchableOpacity style={styles.collapsedRow} onPress={onCollapse}>
+            <View style={styles.handle} />
+            <Text style={styles.collapsedText}>Tap to log a moment</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={onCollapse} style={styles.handleHit}>
+          <TouchableOpacity onPress={onCollapse} style={styles.handleHit} {...panResponder.panHandlers}>
             <View style={styles.handle} />
           </TouchableOpacity>
 
@@ -192,7 +245,7 @@ export function QuickCaptureSheet({ expanded, initialMode = 'training', onCollap
           </TouchableOpacity>
         </ScrollView>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -262,7 +315,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 8,
     paddingBottom: 16,
-    maxHeight: 480,
+    overflow: 'hidden',
   },
   sheetCollapsed: {
     paddingBottom: 14,
