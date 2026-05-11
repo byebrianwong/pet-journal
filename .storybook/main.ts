@@ -37,6 +37,7 @@ const config: StorybookConfig = {
           { find: /^.*\/services\/fi-sync$/, replacement: path.join(mocks, 'fi-sync.ts') },
           { find: /^.*\/services\/sharing$/, replacement: path.join(mocks, 'sharing.ts') },
           { find: /^.*\/services\/receipt-scanner$/, replacement: path.join(mocks, 'receipt-scanner.ts') },
+          { find: /^.*\/services\/camera-roll$/, replacement: path.join(mocks, 'camera-roll.ts') },
           { find: /^.*\/hooks\/useFiSync$/, replacement: path.join(mocks, 'useFiSync.ts') },
           { find: /^.*\/hooks\/useRealtimeTimeline$/, replacement: path.join(mocks, 'useRealtimeTimeline.ts') },
           { find: /^.*\/state\/PetContext$/, replacement: path.join(mocks, 'PetContext.tsx') },
