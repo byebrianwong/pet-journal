@@ -21,6 +21,6 @@ export async function createTimelineEvent(params: any): Promise<TimelineEvent> {
   };
 }
 
-export async function uploadPhoto(_uri: string): Promise<string> {
+export async function uploadPhoto(_uri: string, _petId: string, _bucket?: string): Promise<string> {
   return 'https://placehold.co/600x400/c4a882/fff?text=Photo';
 }
