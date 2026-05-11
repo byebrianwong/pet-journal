@@ -282,15 +282,6 @@ export function TimelineScreen({ navigation }: any) {
         onCollapse={() => setSheetExpanded(v => !v)}
         onSave={handleQuickSave}
       />
-
-      {!sheetExpanded && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setSheetExpanded(true)}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
-      )}
     </SafeAreaView>
   );
 }
@@ -331,23 +322,6 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontFamily: fonts.serifBold, fontSize: 18, color: colors.text },
   emptySubtitle: { fontFamily: fonts.serif, fontStyle: 'italic', fontSize: 13, color: colors.textMuted, marginTop: 4 },
-  fab: {
-    position: 'absolute',
-    bottom: 80,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  fabText: { fontSize: 28, color: '#fff', marginTop: -2 },
   firstRunEmoji: { fontSize: 64, marginBottom: 16 },
   firstRunTitle: { fontFamily: fonts.serifBold, fontSize: 22, color: colors.text, marginBottom: 8 },
   firstRunSubtitle: {
