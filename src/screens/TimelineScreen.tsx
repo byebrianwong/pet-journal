@@ -26,6 +26,7 @@ import { summarizeDays } from '../utils/dayIcons';
 import { PetHeader } from '../components/PetHeader';
 import { HeatmapStrip } from '../components/HeatmapStrip';
 import { SuggestionCard } from '../components/SuggestionCard';
+import { QuickCaptureSheet, type QuickEntry } from '../components/QuickCaptureSheet';
 import { MemoryCard } from '../components/cards/MemoryCard';
 import { VetVisitCard } from '../components/cards/VetVisitCard';
 import { FiActivityCard } from '../components/cards/FiActivityCard';
@@ -52,6 +53,7 @@ export function TimelineScreen({ navigation }: any) {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -93,6 +95,53 @@ export function TimelineScreen({ navigation }: any) {
   }, [loadData]);
 
   const summaries = useMemo(() => summarizeDays(events), [events]);
+
+  const handleQuickSave = useCallback(async (entry: QuickEntry) => {
+    if (!pet) return;
+    const now = new Date().toISOString();
+    if (entry.mode === 'training') {
+      await createTimelineEvent({
+        petId: pet.id,
+        eventType: 'memory',
+        eventDate: now,
+        title: entry.cue ?? 'Training',
+        notes: [
+          entry.around?.join(', ') && `Around ${entry.around.join(', ')}`,
+          entry.duration && entry.duration,
+          entry.toughMoment && 'Marked a tough moment.',
+        ].filter(Boolean).join(' · '),
+        metadata: {
+          entry_kind: 'training',
+          cue: entry.cue,
+          around: entry.around,
+          duration: entry.duration,
+          tough_moment: entry.toughMoment ?? false,
+          reaction_count: entry.toughMoment ? 1 : 0,
+        } as any,
+      });
+    } else if (entry.mode === 'memory') {
+      await createTimelineEvent({
+        petId: pet.id,
+        eventType: 'memory',
+        eventDate: now,
+        title: entry.kind ?? 'A moment',
+        metadata: { entry_kind: entry.kind?.toLowerCase() === 'outing' ? 'outing' : 'memory' } as any,
+      });
+    } else if (entry.mode === 'med') {
+      await createTimelineEvent({
+        petId: pet.id,
+        eventType: 'medication_log',
+        eventDate: now,
+        title: entry.medName ?? 'Medication',
+        metadata: {
+          medication_name: entry.medName,
+          is_recurring: entry.isRecurring ?? false,
+          frequency: entry.isRecurring ? 'monthly' : 'one-time',
+        } as any,
+      });
+    }
+    await loadData();
+  }, [pet, loadData]);
 
   const handleMarkMedDone = useCallback(async (med: Medication) => {
     if (!pet) return;
@@ -228,12 +277,20 @@ export function TimelineScreen({ navigation }: any) {
         }
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddEntry', { petId: pet.id })}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      <QuickCaptureSheet
+        expanded={sheetExpanded}
+        onCollapse={() => setSheetExpanded(v => !v)}
+        onSave={handleQuickSave}
+      />
+
+      {!sheetExpanded && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setSheetExpanded(true)}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -249,7 +306,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     transform: [{ rotate: '-0.5deg' }],
   },
-  list: { paddingHorizontal: 16, paddingBottom: 100 },
+  list: { paddingHorizontal: 16, paddingBottom: 180 },
   sectionLabel: {
     fontFamily: fonts.serifBold,
     fontSize: 11,
@@ -276,7 +333,7 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontFamily: fonts.serif, fontStyle: 'italic', fontSize: 13, color: colors.textMuted, marginTop: 4 },
   fab: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 150,
     right: 24,
     width: 56,
     height: 56,
