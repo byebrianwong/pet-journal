@@ -25,6 +25,8 @@ import { notify } from '../utils/feedback';
 import { summarizeDays } from '../utils/dayIcons';
 import { computeSuggestions, type Suggestion } from '../utils/suggestions';
 import { PetHeader } from '../components/PetHeader';
+import { PetSwitcherSheet } from '../components/PetSwitcherSheet';
+import { usePets } from '../state/PetContext';
 import { HeatmapStrip } from '../components/HeatmapStrip';
 import { SuggestionCard } from '../components/SuggestionCard';
 import { dateKey } from '../utils/dayIcons';
@@ -35,7 +37,7 @@ import { FiActivityCard } from '../components/cards/FiActivityCard';
 import { MedicationReminderCard } from '../components/cards/MedicationReminderCard';
 import { MedicationLogCard } from '../components/cards/MedicationLogCard';
 import { getTimelineEvents, createTimelineEvent } from '../services/timeline';
-import { getMyPets, getPetShares, getMedications } from '../services/pets';
+import { getPetShares, getMedications } from '../services/pets';
 import { useFiSync } from '../hooks/useFiSync';
 import { useRealtimeTimeline } from '../hooks/useRealtimeTimeline';
 import type { TimelineEvent, Pet, PetShare, Medication } from '../types/database';
@@ -49,32 +51,29 @@ type ListItem =
 const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
 export function TimelineScreen({ navigation }: any) {
-  const [pet, setPet] = useState<Pet | null>(null);
+  const { pets, currentPet, currentPetId, loading: petsLoading, setCurrentPetId } = usePets();
   const [shares, setShares] = useState<(PetShare & { user: any })[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const pet = currentPet;
 
   const loadData = useCallback(async () => {
+    if (!currentPetId) {
+      setShares([]);
+      setEvents([]);
+      setMedications([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const pets = await getMyPets();
-      if (pets.length === 0) {
-        setPet(null);
-        setShares([]);
-        setEvents([]);
-        setMedications([]);
-        return;
-      }
-
-      const currentPet = pets[0];
-      setPet(currentPet);
-
       const [sharesData, eventsData, medsData] = await Promise.all([
-        getPetShares(currentPet.id),
-        getTimelineEvents(currentPet.id),
-        getMedications(currentPet.id),
+        getPetShares(currentPetId),
+        getTimelineEvents(currentPetId),
+        getMedications(currentPetId),
       ]);
       setShares(sharesData);
       setEvents(eventsData);
@@ -84,7 +83,7 @@ export function TimelineScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPetId]);
 
   useFiSync(pet?.id ?? null);
   useRealtimeTimeline(pet?.id ?? null, loadData);
@@ -239,7 +238,7 @@ export function TimelineScreen({ navigation }: any) {
     return items;
   }, [pet, medications, events, suggestions]);
 
-  if (loading) {
+  if (loading || petsLoading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -303,7 +302,11 @@ export function TimelineScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <PetHeader pet={pet} shares={shares} />
+      <PetHeader
+        pet={pet}
+        shares={shares}
+        onPressPet={pets.length > 1 || pets.length > 0 ? () => setSwitcherOpen(true) : undefined}
+      />
       <Text style={styles.dateStamp}>{TODAY_LABEL}</Text>
 
       <HeatmapStrip
@@ -333,6 +336,15 @@ export function TimelineScreen({ navigation }: any) {
         expanded={sheetExpanded}
         onCollapse={() => setSheetExpanded(v => !v)}
         onSave={handleQuickSave}
+      />
+
+      <PetSwitcherSheet
+        visible={switcherOpen}
+        pets={pets}
+        currentPetId={currentPetId}
+        onSelect={setCurrentPetId}
+        onAddPet={() => navigation.navigate('AddPet')}
+        onClose={() => setSwitcherOpen(false)}
       />
     </SafeAreaView>
   );

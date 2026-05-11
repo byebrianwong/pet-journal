@@ -21,6 +21,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { supabase } from './src/services/supabase';
+import { PetProvider, usePets } from './src/state/PetContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TimelineScreen } from './src/screens/TimelineScreen';
 import { AddEntryScreen } from './src/screens/AddEntryScreen';
@@ -92,30 +93,7 @@ function MainTabs() {
 
 // Wrapper to pass petId to MedicationsScreen from tab
 function MedicationsTabWrapper(props: any) {
-  const [petId, setPetId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, error: queryErr } = await supabase
-          .from('pet_shares')
-          .select('pet_id')
-          .limit(1)
-          .maybeSingle();
-        if (queryErr) throw queryErr;
-        if (data) setPetId(data.pet_id);
-      } catch (err: any) {
-        setError(err?.message ?? 'Could not load your pet.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const { currentPetId, loading, error } = usePets();
 
   if (loading) {
     return (
@@ -133,7 +111,7 @@ function MedicationsTabWrapper(props: any) {
       </View>
     );
   }
-  if (!petId) {
+  if (!currentPetId) {
     return (
       <View style={emptyStyles.container}>
         <Text style={emptyStyles.emoji}>🐾</Text>
@@ -148,7 +126,7 @@ function MedicationsTabWrapper(props: any) {
       </View>
     );
   }
-  return <MedicationsScreen {...props} route={{ ...props.route, params: { petId } }} />;
+  return <MedicationsScreen {...props} route={{ ...props.route, params: { petId: currentPetId } }} />;
 }
 
 const emptyStyles = StyleSheet.create({
@@ -306,32 +284,36 @@ export default function App() {
     },
   };
 
+  const stack = (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      {session ? (
+        <>
+          <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: '' }} />
+          <Stack.Screen name="AddPet" component={AddPetScreen} options={{ title: 'Add a Pet' }} />
+          <Stack.Screen name="Medications" component={MedicationsScreen} options={{ title: 'Medications' }} />
+          <Stack.Screen name="Sharing" component={SharingScreen} options={{ title: 'Sharing' }} />
+          <Stack.Screen name="FiSetup" component={FiSetupScreen} options={{ title: 'Fi Collar' }} />
+          <Stack.Screen name="AcceptInvite" component={AcceptInviteScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Heatmap" component={HeatmapScreen} options={{ headerShown: false }} />
+        </>
+      ) : (
+        <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+      )}
+    </Stack.Navigator>
+  );
+
   return (
     <NavigationContainer ref={navigationRef} linking={linking}>
       <StatusBar style="dark" />
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        {session ? (
-          <>
-            <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-            <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: '' }} />
-            <Stack.Screen name="AddPet" component={AddPetScreen} options={{ title: 'Add a Pet' }} />
-            <Stack.Screen name="Medications" component={MedicationsScreen} options={{ title: 'Medications' }} />
-            <Stack.Screen name="Sharing" component={SharingScreen} options={{ title: 'Sharing' }} />
-            <Stack.Screen name="FiSetup" component={FiSetupScreen} options={{ title: 'Fi Collar' }} />
-            <Stack.Screen name="AcceptInvite" component={AcceptInviteScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Heatmap" component={HeatmapScreen} options={{ headerShown: false }} />
-          </>
-        ) : (
-          <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
-        )}
-      </Stack.Navigator>
+      {session ? <PetProvider>{stack}</PetProvider> : stack}
     </NavigationContainer>
   );
 }

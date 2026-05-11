@@ -39,6 +39,7 @@ const config: StorybookConfig = {
           { find: /^.*\/services\/receipt-scanner$/, replacement: path.join(mocks, 'receipt-scanner.ts') },
           { find: /^.*\/hooks\/useFiSync$/, replacement: path.join(mocks, 'useFiSync.ts') },
           { find: /^.*\/hooks\/useRealtimeTimeline$/, replacement: path.join(mocks, 'useRealtimeTimeline.ts') },
+          { find: /^.*\/state\/PetContext$/, replacement: path.join(mocks, 'PetContext.tsx') },
 
           // RN-ecosystem libs that ship native specs with Flow syntax.
           // Replace with View-backed stubs.

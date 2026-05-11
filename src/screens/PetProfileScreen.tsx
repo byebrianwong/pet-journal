@@ -2,39 +2,40 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/colors';
 import { confirm } from '../utils/feedback';
-import { getMyPets, getPetShares } from '../services/pets';
+import { getPetShares } from '../services/pets';
 import { supabase } from '../services/supabase';
-import type { Pet } from '../types/database';
 import { formatDate } from '../utils/dates';
+import { usePets } from '../state/PetContext';
+import { PetSwitcherSheet } from '../components/PetSwitcherSheet';
 
 export function PetProfileScreen({ navigation }: any) {
-  const [pet, setPet] = useState<Pet | null>(null);
+  const { pets, currentPet, currentPetId, loading: petsLoading, error: petsError, setCurrentPetId } = usePets();
+  const pet = currentPet;
   const [shareCount, setShareCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(petsError);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
-  const [error, setError] = useState<string | null>(null);
-
-  const loadPet = useCallback(async () => {
-    setLoading(true);
+  const loadShares = useCallback(async () => {
     setError(null);
+    if (!currentPetId) {
+      setShareCount(0);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const pets = await getMyPets();
-      if (pets.length > 0) {
-        setPet(pets[0]);
-        const shares = await getPetShares(pets[0].id);
-        setShareCount(shares.length);
-      } else {
-        setPet(null);
-      }
+      const shares = await getPetShares(currentPetId);
+      setShareCount(shares.length);
     } catch (err: any) {
-      setError(err?.message ?? 'Could not load your pet.');
-      setPet(null);
+      setError(err?.message ?? 'Could not load shares.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPetId]);
 
-  useEffect(() => { loadPet(); }, [loadPet]);
+  useEffect(() => { loadShares(); }, [loadShares]);
+  useEffect(() => { if (petsError) setError(petsError); }, [petsError]);
 
   const handleSignOut = () => {
     confirm('Sign out?', 'You can always sign back in.', {
@@ -46,7 +47,7 @@ export function PetProfileScreen({ navigation }: any) {
     });
   };
 
-  if (loading) {
+  if (loading || petsLoading) {
     return (
       <View style={[styles.container, styles.emptyContainer]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -63,7 +64,7 @@ export function PetProfileScreen({ navigation }: any) {
           {error ?? 'Add a pet to set up their profile.'}
         </Text>
         {error ? (
-          <TouchableOpacity style={styles.emptyButton} onPress={loadPet}>
+          <TouchableOpacity style={styles.emptyButton} onPress={loadShares}>
             <Text style={styles.emptyButtonText}>Retry</Text>
           </TouchableOpacity>
         ) : (
@@ -126,6 +127,16 @@ export function PetProfileScreen({ navigation }: any) {
       </View>
 
       <View style={styles.section}>
+        {pets.length > 1 && (
+          <TouchableOpacity style={styles.menuItem} onPress={() => setSwitcherOpen(true)}>
+            <Text style={styles.menuEmoji}>🔄</Text>
+            <View style={styles.menuTextRow}>
+              <Text style={styles.menuText}>Switch pet</Text>
+              <Text style={styles.menuSubtext}>{pets.length} pets</Text>
+            </View>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => navigation.navigate('AddPet')}
@@ -142,6 +153,15 @@ export function PetProfileScreen({ navigation }: any) {
           <Text style={[styles.menuText, { color: colors.error }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
+
+      <PetSwitcherSheet
+        visible={switcherOpen}
+        pets={pets}
+        currentPetId={currentPetId}
+        onSelect={setCurrentPetId}
+        onAddPet={() => navigation.navigate('AddPet')}
+        onClose={() => setSwitcherOpen(false)}
+      />
     </ScrollView>
   );
 }
