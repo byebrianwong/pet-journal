@@ -18,7 +18,9 @@ type Story = StoryObj<typeof QuickCaptureSheet>;
 const InPhone: React.FC<{ initialMode?: QuickMode; expanded?: boolean }> = ({ initialMode, expanded: initialExpanded }) => {
   const [expanded, setExpanded] = useState(initialExpanded ?? true);
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'flex-end' }}>
+    <View style={{ width: 375, minHeight: 600, backgroundColor: colors.background, position: 'relative' }}>
+      {/* Fake bottom tab bar so the sheet's bottom:80 has somewhere to sit visibly */}
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.borderStrong }} />
       <QuickCaptureSheet
         expanded={expanded}
         initialMode={initialMode}
