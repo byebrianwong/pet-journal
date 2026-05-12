@@ -15,6 +15,7 @@ drop function if exists public.update_updated_at() cascade;
 drop function if exists public.is_pet_owner(uuid) cascade;
 drop function if exists public.create_pet_with_owner(text, text, text, date, decimal, text) cascade;
 drop function if exists public.get_throwback_events(uuid) cascade;
+drop function if exists public.get_throwback_events(uuid, date) cascade;
 
 drop table if exists public.pet_invites cascade;
 drop table if exists public.medications cascade;
@@ -202,10 +203,12 @@ $$;
 
 grant execute on function public.create_pet_with_owner(text, text, text, date, decimal, text) to authenticated;
 
--- "On this day" throwbacks: events from the same month+day in prior years.
--- Floor at 180 days ago so today's own entries don't show up as throwbacks.
+-- Throwback memories: a sample of older memory-type events to resurface
+-- in the feed. p_today is the user's *local* date (Postgres now() is UTC,
+-- which silently shifts the boundary by up to a day for non-UTC users).
+-- Floor at 1 month before p_today so today's own captures don't qualify.
 -- RLS on timeline_events still applies (function is SECURITY INVOKER).
-create or replace function public.get_throwback_events(p_pet_id uuid)
+create or replace function public.get_throwback_events(p_pet_id uuid, p_today date)
 returns setof public.timeline_events
 language sql
 stable
@@ -213,14 +216,13 @@ as $$
   select *
   from public.timeline_events
   where pet_id = p_pet_id
-    and extract(month from event_date) = extract(month from now())
-    and extract(day from event_date) = extract(day from now())
-    and event_date < (now() - interval '180 days')
+    and event_type = 'memory'
+    and event_date < (p_today - interval '1 month')
   order by event_date desc
-  limit 10;
+  limit 5;
 $$;
 
-grant execute on function public.get_throwback_events(uuid) to authenticated;
+grant execute on function public.get_throwback_events(uuid, date) to authenticated;
 
 -- ========================================================================
 -- Row Level Security

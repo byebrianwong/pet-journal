@@ -35,3 +35,10 @@ export function groupByDate<T extends { event_date: string }>(events: T[]): Map<
 export function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
+
+// User's local YYYY-MM-DD (en-CA renders ISO format). Use this anywhere the
+// "what day is it" decision is calendar-driven from the user's perspective,
+// since toISOString() / new Date().toISOString() are UTC and silently shift.
+export function todayLocalISO(): string {
+  return new Date().toLocaleDateString('en-CA');
+}
