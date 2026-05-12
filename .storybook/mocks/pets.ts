@@ -14,9 +14,16 @@ export async function createPet(params: any): Promise<Pet> {
     birthday: params.birthday ?? null,
     weight_lbs: params.weight_lbs ?? null,
     photo_url: params.photo_url ?? null,
+    fi_pet_id: null,
     created_by: 'mock-user-1',
     created_at: new Date().toISOString(),
   };
+}
+
+export async function setFiPetId(_petId: string, _fiPetId: string | null): Promise<void> {}
+
+export async function getPet(petId: string): Promise<Pet | null> {
+  return getMockState().pets.find((p) => p.id === petId) ?? null;
 }
 
 export async function getPetShares(_petId: string) {

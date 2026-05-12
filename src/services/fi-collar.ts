@@ -11,10 +11,17 @@ export interface FiActivity {
   goal_pct: number;
 }
 
+export interface FiPet {
+  id: string;
+  name: string;
+  photo_url: string | null;
+}
+
 export interface FiCollarService {
   isConfigured(): Promise<boolean>;
   login(email: string, password: string): Promise<boolean>;
-  getActivity(petId: string, date: string): Promise<FiActivity | null>;
+  listPets(): Promise<FiPet[]>;
+  getActivity(fiPetId: string, date: string): Promise<FiActivity | null>;
   disconnect(): Promise<void>;
 }
 
@@ -54,20 +61,49 @@ export const fiCollar: FiCollarService = {
     }
   },
 
-  async getActivity(petId: string, date: string): Promise<FiActivity | null> {
+  async listPets(): Promise<FiPet[]> {
+    try {
+      const token = await getToken();
+      if (!token) return [];
+
+      const response = await fetch(`${FI_API_BASE}/pets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (!refreshed) return [];
+        return fiCollar.listPets();
+      }
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      const pets: any[] = Array.isArray(data) ? data : (data.pets ?? []);
+      return pets.map((p) => ({
+        id: String(p.id),
+        name: p.name ?? 'Unnamed',
+        photo_url: p.photoUrl ?? p.photo_url ?? null,
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  async getActivity(fiPetId: string, date: string): Promise<FiActivity | null> {
     try {
       const token = await getToken();
       if (!token) return null;
 
       const response = await fetch(
-        `${FI_API_BASE}/pets/${petId}/activity?date=${date}`,
+        `${FI_API_BASE}/pets/${fiPetId}/activity?date=${date}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.status === 401) {
         const refreshed = await refreshToken();
         if (!refreshed) return null;
-        return fiCollar.getActivity(petId, date);
+        return fiCollar.getActivity(fiPetId, date);
       }
 
       if (!response.ok) return null;
