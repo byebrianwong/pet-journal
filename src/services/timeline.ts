@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { todayLocalISO } from '../utils/dates';
 import type { TimelineEvent, EventType, EventMetadata } from '../types/database';
 
 export async function getTimelineEvents(petId: string): Promise<TimelineEvent[]> {
@@ -14,7 +15,10 @@ export async function getTimelineEvents(petId: string): Promise<TimelineEvent[]>
 }
 
 export async function getThrowbackEvents(petId: string): Promise<TimelineEvent[]> {
-  const { data, error } = await supabase.rpc('get_throwback_events', { p_pet_id: petId });
+  const { data, error } = await supabase.rpc('get_throwback_events', {
+    p_pet_id: petId,
+    p_today: todayLocalISO(),
+  });
   if (error) throw error;
   return (data ?? []) as TimelineEvent[];
 }

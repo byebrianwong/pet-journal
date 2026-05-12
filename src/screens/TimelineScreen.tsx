@@ -51,17 +51,6 @@ type ListItem =
 
 const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
-function throwbackLabel(throwbacks: TimelineEvent[]): string {
-  const currentYear = new Date().getFullYear();
-  const years = Array.from(new Set(throwbacks.map(e => new Date(e.event_date).getFullYear())));
-  if (years.length === 1) {
-    const diff = currentYear - years[0];
-    if (diff === 1) return 'On this day, 1 year ago';
-    return `On this day, ${diff} years ago`;
-  }
-  return 'On this day';
-}
-
 export function TimelineScreen({ navigation }: any) {
   const { pets, currentPet, currentPetId, loading: petsLoading, setCurrentPetId } = usePets();
   const [shares, setShares] = useState<(PetShare & { user: any })[]>([]);
@@ -293,7 +282,7 @@ export function TimelineScreen({ navigation }: any) {
     }
 
     if (throwbacks.length > 0) {
-      items.push({ type: 'header', key: 'h-throwback', label: throwbackLabel(throwbacks) });
+      items.push({ type: 'header', key: 'h-throwback', label: 'Throwback', cursive: true });
       for (const event of throwbacks) {
         items.push({ type: 'event', key: `tb-${event.id}`, event });
       }

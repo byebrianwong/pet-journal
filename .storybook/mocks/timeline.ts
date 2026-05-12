@@ -5,7 +5,7 @@ export async function getTimelineEvents(_petId: string): Promise<TimelineEvent[]
   return getMockState().events;
 }
 
-export async function getThrowbackEvents(_petId: string): Promise<TimelineEvent[]> {
+export async function getThrowbackEvents(_petId: string, _today?: string): Promise<TimelineEvent[]> {
   return getMockState().throwbacks ?? [];
 }
 

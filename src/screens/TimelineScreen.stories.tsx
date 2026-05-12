@@ -127,11 +127,9 @@ export const HistoryNoFi: Story = {
   },
 };
 
-const yearsAgo = (years: number, monthOffset = 0) => {
+const monthsAgo = (months: number) => {
   const d = new Date();
-  d.setFullYear(d.getFullYear() - years);
-  d.setMonth(d.getMonth());
-  d.setDate(d.getDate() - monthOffset);
+  d.setMonth(d.getMonth() - months);
   return d.toISOString();
 };
 
@@ -147,22 +145,22 @@ export const Throwback: Story = {
           id: 'tb-1',
           title: 'First beach trip!',
           notes: 'Buddy was scared of the waves at first, then refused to come out.',
-          event_date: yearsAgo(1),
-          created_at: yearsAgo(1),
-          updated_at: yearsAgo(1),
+          event_date: monthsAgo(3),
+          created_at: monthsAgo(3),
+          updated_at: monthsAgo(3),
         },
       ],
       medications: [],
     },
     docs: {
       description: {
-        story: '"On this day, 1 year ago" — a single throwback memory injected above the Recently section.',
+        story: 'A single throwback memory from a few months ago, surfaced above Recently.',
       },
     },
   },
 };
 
-export const ThrowbackMultipleYears: Story = {
+export const ThrowbackMultiple: Story = {
   parameters: {
     mock: {
       pets: [fixturePet],
@@ -174,20 +172,29 @@ export const ThrowbackMultipleYears: Story = {
           id: 'tb-1',
           title: 'First beach trip',
           notes: 'Refused to come out of the water.',
-          event_date: yearsAgo(1),
+          event_date: monthsAgo(2),
         },
         {
-          ...fixtureVetVisitFull,
+          ...fixtureMemoryEvent,
           id: 'tb-2',
-          title: 'Puppy checkup',
-          event_date: yearsAgo(2),
+          title: 'Tail Lake hike',
+          notes: 'Made a new dog friend at the trailhead.',
+          event_date: monthsAgo(7),
+          photo_url: null,
+        },
+        {
+          ...fixtureMemoryEvent,
+          id: 'tb-3',
+          title: 'Snow day',
+          notes: 'First snow — confused at first, then ran zoomies for an hour.',
+          event_date: monthsAgo(14),
         },
       ],
       medications: [],
     },
     docs: {
       description: {
-        story: 'Throwbacks from multiple past years. Header reads simply "On this day".',
+        story: 'Three throwback memories spanning several months and years. Header reads "Throwback".',
       },
     },
   },
