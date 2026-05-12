@@ -29,6 +29,7 @@ export const fixturePet: Pet = {
   birthday: '2022-03-15',
   weight_lbs: 64,
   photo_url: null,
+  fi_pet_id: null,
   created_by: 'user-brian',
   created_at: '2024-01-01T00:00:00Z',
 };

@@ -47,6 +47,26 @@ export async function getPetShares(petId: string): Promise<(PetShare & { user: {
   return data ?? [];
 }
 
+export async function setFiPetId(petId: string, fiPetId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('pets')
+    .update({ fi_pet_id: fiPetId })
+    .eq('id', petId);
+
+  if (error) throw error;
+}
+
+export async function getPet(petId: string): Promise<Pet | null> {
+  const { data, error } = await supabase
+    .from('pets')
+    .select('*')
+    .eq('id', petId)
+    .single();
+
+  if (error) return null;
+  return data as Pet;
+}
+
 export async function getMedications(petId: string): Promise<Medication[]> {
   const { data, error } = await supabase
     .from('medications')

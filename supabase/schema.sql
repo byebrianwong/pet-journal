@@ -48,6 +48,9 @@ create table public.pets (
   birthday date,
   weight_lbs decimal,
   photo_url text,
+  -- fi_pet_id maps a Pet Journal pet to its Fi Collar pet. Set during FiSetup
+  -- after the user picks which of their Fi pets corresponds to this one.
+  fi_pet_id text,
   created_by uuid references public.users(id),
   created_at timestamptz default now()
 );

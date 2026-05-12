@@ -9,6 +9,7 @@ export interface Pet {
   birthday: string | null;
   weight_lbs: number | null;
   photo_url: string | null;
+  fi_pet_id: string | null;
   created_by: string;
   created_at: string;
 }

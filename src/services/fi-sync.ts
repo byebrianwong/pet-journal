@@ -6,6 +6,9 @@ import { todayISO } from '../utils/dates';
  * Syncs Fi Collar activity data for a pet, creating or updating
  * today's fi_activity timeline event. Called on app foreground
  * and by background fetch.
+ *
+ * Requires the pet to have fi_pet_id set (via FiSetupScreen) —
+ * the Supabase pet UUID and Fi pet ID are different namespaces.
  */
 export async function syncFiActivity(petId: string): Promise<boolean> {
   const configured = await fiCollar.isConfigured();
@@ -14,10 +17,15 @@ export async function syncFiActivity(petId: string): Promise<boolean> {
   const today = todayISO();
 
   try {
-    // Fetch activity from Fi. petId here is the Fi pet ID.
-    // For V1, we assume the Fi pet ID matches. A mapping table
-    // could be added later if the user has multiple Fi pets.
-    const activity = await fiCollar.getActivity(petId, today);
+    const { data: pet } = await supabase
+      .from('pets')
+      .select('fi_pet_id')
+      .eq('id', petId)
+      .single();
+
+    if (!pet?.fi_pet_id) return false;
+
+    const activity = await fiCollar.getActivity(pet.fi_pet_id, today);
     if (!activity) return false;
 
     const { data: { user } } = await supabase.auth.getUser();
