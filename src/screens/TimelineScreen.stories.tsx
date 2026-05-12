@@ -126,3 +126,69 @@ export const HistoryNoFi: Story = {
     },
   },
 };
+
+const yearsAgo = (years: number, monthOffset = 0) => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  d.setMonth(d.getMonth());
+  d.setDate(d.getDate() - monthOffset);
+  return d.toISOString();
+};
+
+export const Throwback: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      events: [fixtureMemoryEvent],
+      throwbacks: [
+        {
+          ...fixtureMemoryEvent,
+          id: 'tb-1',
+          title: 'First beach trip!',
+          notes: 'Buddy was scared of the waves at first, then refused to come out.',
+          event_date: yearsAgo(1),
+          created_at: yearsAgo(1),
+          updated_at: yearsAgo(1),
+        },
+      ],
+      medications: [],
+    },
+    docs: {
+      description: {
+        story: '"On this day, 1 year ago" — a single throwback memory injected above the Recently section.',
+      },
+    },
+  },
+};
+
+export const ThrowbackMultipleYears: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      events: [fixtureMemoryEvent],
+      throwbacks: [
+        {
+          ...fixtureMemoryEvent,
+          id: 'tb-1',
+          title: 'First beach trip',
+          notes: 'Refused to come out of the water.',
+          event_date: yearsAgo(1),
+        },
+        {
+          ...fixtureVetVisitFull,
+          id: 'tb-2',
+          title: 'Puppy checkup',
+          event_date: yearsAgo(2),
+        },
+      ],
+      medications: [],
+    },
+    docs: {
+      description: {
+        story: 'Throwbacks from multiple past years. Header reads simply "On this day".',
+      },
+    },
+  },
+};

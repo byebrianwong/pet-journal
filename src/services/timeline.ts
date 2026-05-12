@@ -13,6 +13,12 @@ export async function getTimelineEvents(petId: string): Promise<TimelineEvent[]>
   return data ?? [];
 }
 
+export async function getThrowbackEvents(petId: string): Promise<TimelineEvent[]> {
+  const { data, error } = await supabase.rpc('get_throwback_events', { p_pet_id: petId });
+  if (error) throw error;
+  return (data ?? []) as TimelineEvent[];
+}
+
 export async function createTimelineEvent(params: {
   petId: string;
   eventType: EventType;

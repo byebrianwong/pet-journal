@@ -14,6 +14,7 @@ drop function if exists public.handle_new_user() cascade;
 drop function if exists public.update_updated_at() cascade;
 drop function if exists public.is_pet_owner(uuid) cascade;
 drop function if exists public.create_pet_with_owner(text, text, text, date, decimal, text) cascade;
+drop function if exists public.get_throwback_events(uuid) cascade;
 
 drop table if exists public.pet_invites cascade;
 drop table if exists public.medications cascade;
@@ -197,6 +198,26 @@ end;
 $$;
 
 grant execute on function public.create_pet_with_owner(text, text, text, date, decimal, text) to authenticated;
+
+-- "On this day" throwbacks: events from the same month+day in prior years.
+-- Floor at 180 days ago so today's own entries don't show up as throwbacks.
+-- RLS on timeline_events still applies (function is SECURITY INVOKER).
+create or replace function public.get_throwback_events(p_pet_id uuid)
+returns setof public.timeline_events
+language sql
+stable
+as $$
+  select *
+  from public.timeline_events
+  where pet_id = p_pet_id
+    and extract(month from event_date) = extract(month from now())
+    and extract(day from event_date) = extract(day from now())
+    and event_date < (now() - interval '180 days')
+  order by event_date desc
+  limit 10;
+$$;
+
+grant execute on function public.get_throwback_events(uuid) to authenticated;
 
 -- ========================================================================
 -- Row Level Security
