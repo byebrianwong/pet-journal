@@ -4,6 +4,7 @@ export interface MockState {
   pets: Pet[];
   shares: (PetShare & { user: { display_name: string; avatar_url: string | null } })[];
   events: TimelineEvent[];
+  throwbacks: TimelineEvent[];
   medications: Medication[];
   fiConnected: boolean;
   fiSteps: number | null;
@@ -15,6 +16,7 @@ export const defaultMockState: MockState = {
   pets: [],
   shares: [],
   events: [],
+  throwbacks: [],
   medications: [],
   fiConnected: false,
   fiSteps: null,

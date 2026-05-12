@@ -37,7 +37,7 @@ import { VetVisitCard } from '../components/cards/VetVisitCard';
 import { FiActivityCard } from '../components/cards/FiActivityCard';
 import { MedicationReminderCard } from '../components/cards/MedicationReminderCard';
 import { MedicationLogCard } from '../components/cards/MedicationLogCard';
-import { getTimelineEvents, createTimelineEvent, uploadPhoto } from '../services/timeline';
+import { getTimelineEvents, getThrowbackEvents, createTimelineEvent, uploadPhoto } from '../services/timeline';
 import { getPetShares, getMedications } from '../services/pets';
 import { useFiSync } from '../hooks/useFiSync';
 import { useRealtimeTimeline } from '../hooks/useRealtimeTimeline';
@@ -51,10 +51,22 @@ type ListItem =
 
 const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
+function throwbackLabel(throwbacks: TimelineEvent[]): string {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(new Set(throwbacks.map(e => new Date(e.event_date).getFullYear())));
+  if (years.length === 1) {
+    const diff = currentYear - years[0];
+    if (diff === 1) return 'On this day, 1 year ago';
+    return `On this day, ${diff} years ago`;
+  }
+  return 'On this day';
+}
+
 export function TimelineScreen({ navigation }: any) {
   const { pets, currentPet, currentPetId, loading: petsLoading, setCurrentPetId } = usePets();
   const [shares, setShares] = useState<(PetShare & { user: any })[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [throwbacks, setThrowbacks] = useState<TimelineEvent[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,18 +79,21 @@ export function TimelineScreen({ navigation }: any) {
     if (!currentPetId) {
       setShares([]);
       setEvents([]);
+      setThrowbacks([]);
       setMedications([]);
       setLoading(false);
       return;
     }
     try {
-      const [sharesData, eventsData, medsData] = await Promise.all([
+      const [sharesData, eventsData, throwbacksData, medsData] = await Promise.all([
         getPetShares(currentPetId),
         getTimelineEvents(currentPetId),
+        getThrowbackEvents(currentPetId),
         getMedications(currentPetId),
       ]);
       setShares(sharesData);
       setEvents(eventsData);
+      setThrowbacks(throwbacksData);
       setMedications(medsData);
     } catch (err: any) {
       notify('Error', err?.message ?? 'Could not load your timeline.');
@@ -277,6 +292,13 @@ export function TimelineScreen({ navigation }: any) {
       }
     }
 
+    if (throwbacks.length > 0) {
+      items.push({ type: 'header', key: 'h-throwback', label: throwbackLabel(throwbacks) });
+      for (const event of throwbacks) {
+        items.push({ type: 'event', key: `tb-${event.id}`, event });
+      }
+    }
+
     if (olderEvents.length > 0) {
       items.push({ type: 'header', key: 'h-recent', label: 'Recently' });
       for (const event of olderEvents.slice(0, 20)) {
@@ -285,7 +307,7 @@ export function TimelineScreen({ navigation }: any) {
     }
 
     return items;
-  }, [pet, medications, events, suggestions]);
+  }, [pet, medications, events, throwbacks, suggestions]);
 
   if (loading || petsLoading) {
     return (
