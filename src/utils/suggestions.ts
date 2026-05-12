@@ -8,8 +8,9 @@
  *     Source: expo-media-library via src/services/camera-roll.ts.
  *   - medication_due: a `medications` row with no `medication_log`
  *     event in the last `frequency`-interval window.
- *   - empty_day_nudge: no entries today and the user has been logging
- *     recently. Soft prompt to capture a moment.
+ *   - empty_day_nudge: no entries today (and no higher-priority
+ *     suggestion already taking the slot). Soft prompt to capture
+ *     a moment.
  *
  * Each suggestion is a plain data object the screen renders via the
  * SuggestionCard component.
@@ -135,12 +136,14 @@ export function computeSuggestions(input: {
   }
 
   // ---- Empty-day nudge ----
-  // If there are no entries today but the user has been active in the
-  // last 7 days, gently prompt them to log something.
-  const todayKey = new Date(now).toISOString().slice(0, 10);
+  // If there are no entries today and no higher-priority suggestion has
+  // taken the slot, gently prompt them to log something. We don't gate on
+  // past activity — sparse loggers and returning users benefit most.
+  // todayKey uses the user's *local* date; toISOString() is UTC and would
+  // silently shift the boundary by up to a day for non-UTC users.
+  const todayKey = new Date(now).toLocaleDateString('en-CA');
   const todayEvents = input.events.filter(e => e.event_date.startsWith(todayKey));
-  const weekEvents = input.events.filter(e => now - new Date(e.event_date).getTime() < 7 * ONE_DAY_MS);
-  if (todayEvents.length === 0 && weekEvents.length >= 2 && out.length === 0) {
+  if (todayEvents.length === 0 && out.length === 0) {
     out.push({
       id: 'nudge-empty',
       kind: 'empty_day_nudge',
