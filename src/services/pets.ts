@@ -67,6 +67,23 @@ export async function getPet(petId: string): Promise<Pet | null> {
   return data as Pet;
 }
 
+export async function getMedicationLogs(
+  petId: string,
+  sinceDays = 60,
+): Promise<import('../types/database').TimelineEvent[]> {
+  const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('timeline_events')
+    .select('*')
+    .eq('pet_id', petId)
+    .eq('event_type', 'medication_log')
+    .gte('event_date', since)
+    .order('event_date', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as any;
+}
+
 export async function getMedications(petId: string): Promise<Medication[]> {
   const { data, error } = await supabase
     .from('medications')
