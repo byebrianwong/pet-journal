@@ -17,6 +17,7 @@
  */
 import type { Medication, TimelineEvent } from '../types/database';
 import type { PhotoCluster } from '../services/camera-roll';
+import { intervalMs } from './medications';
 
 export type SuggestionKind = 'medication_due' | 'empty_day_nudge' | 'photo_cluster';
 
@@ -35,23 +36,6 @@ export interface Suggestion {
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Approximate next-due interval (in ms) for a medication based on its
- * `frequency` text. Keep loose — users phrase frequencies in many ways
- * and we'd rather over-prompt than miss a dose.
- */
-function intervalMs(frequency: string): number {
-  const f = (frequency ?? '').toLowerCase();
-  if (f.includes('twice')) return ONE_DAY_MS / 2;
-  if (f.includes('daily') || f.includes('every day')) return ONE_DAY_MS;
-  if (f.includes('weekly') || f.includes('every week')) return 7 * ONE_DAY_MS;
-  if (f.includes('biweekly') || f.includes('every 2 weeks')) return 14 * ONE_DAY_MS;
-  if (f.includes('monthly') || f.includes('every month')) return 30 * ONE_DAY_MS;
-  if (f.includes('every 3 months') || f.includes('quarterly')) return 90 * ONE_DAY_MS;
-  // Conservative default for unknown intervals — prompt once a month.
-  return 30 * ONE_DAY_MS;
-}
 
 /**
  * Pretty label for a frequency interval — used in suggestion subtitles

@@ -34,6 +34,10 @@ export async function getMedications(_petId: string): Promise<Medication[]> {
   return getMockState().medications;
 }
 
+export async function getMedicationLogs(_petId: string, _sinceDays?: number) {
+  return getMockState().events.filter(e => e.event_type === 'medication_log');
+}
+
 export async function createMedication(params: any): Promise<Medication> {
   return {
     id: 'new-med',
