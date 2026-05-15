@@ -1,4 +1,5 @@
 import type { Pet, PetShare, TimelineEvent, Medication, UserProfile } from '../src/types/database';
+import type { PhotoCluster } from '../src/services/camera-roll';
 
 export const fixtureUsers: Record<string, UserProfile> = {
   brian: {
@@ -195,3 +196,55 @@ export const fixtureMedications: Medication[] = [
     created_at: '2026-01-15T00:00:00Z',
   },
 ];
+
+// Medication whose start_date is far enough in the past that the
+// medication_due suggestion engine will mark it overdue. Useful for
+// stories that need to trigger the suggestion path.
+export const fixtureOverdueMonthlyMed: Medication = {
+  ...fixtureMedications[1],
+  start_date: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+};
+
+export const fixtureOverdueWeeklyMed: Medication = {
+  id: 'med-weekly-1',
+  pet_id: 'pet-buddy',
+  name: 'Cytopoint',
+  dosage: '1 injection',
+  frequency: 'weekly',
+  time_of_day: null,
+  start_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  end_date: null,
+  created_by: 'user-brian',
+  created_at: '2026-04-15T00:00:00Z',
+};
+
+// Camera-roll cluster fixture for photo_cluster suggestion stories.
+// centroidTime is "earlier today" so the suggestion engine's default label
+// reflects that, and the thumbnail URI is a stable placeholder.
+const recentCentroid = Date.now() - 3 * 60 * 60 * 1000;
+export const fixturePhotoCluster: PhotoCluster = {
+  id: 'cluster-park-1',
+  label: '4 photos from Lake Park',
+  centroidTime: recentCentroid,
+  centroidLocation: { lat: 37.7749, lng: -122.4194 },
+  assets: [
+    {
+      id: 'asset-1',
+      uri: 'https://placehold.co/600x400/8eb89c/fff?text=Lake+Park+1',
+      filename: 'IMG_0001.jpg',
+      width: 4032,
+      height: 3024,
+      creationTime: recentCentroid - 5 * 60 * 1000,
+      location: { lat: 37.7749, lng: -122.4194 },
+    },
+    {
+      id: 'asset-2',
+      uri: 'https://placehold.co/600x400/8eb89c/fff?text=Lake+Park+2',
+      filename: 'IMG_0002.jpg',
+      width: 4032,
+      height: 3024,
+      creationTime: recentCentroid,
+      location: { lat: 37.7749, lng: -122.4194 },
+    },
+  ],
+};
