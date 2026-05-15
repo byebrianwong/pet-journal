@@ -9,6 +9,9 @@ import {
   fixtureFiActivityHigh,
   fixtureMedLog,
   fixtureMedications,
+  fixtureOverdueMonthlyMed,
+  fixtureOverdueWeeklyMed,
+  fixturePhotoCluster,
 } from '../../.storybook/fixtures';
 
 const noopNav = {
@@ -91,16 +94,8 @@ export const OverdueMedSuggestion: Story = {
     mock: {
       pets: [fixturePet],
       shares: [fixtureShares[0]],
-      // No medication_log events for Heartgard recently → suggestion fires
       events: [],
-      medications: [
-        // Heartgard is monthly + start_date 40 days ago — should trigger
-        // "💊 Heartgard due today" suggestion above the feed.
-        {
-          ...fixtureMedications[1],
-          start_date: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        },
-      ],
+      medications: [fixtureOverdueMonthlyMed],
     },
     docs: {
       description: {
@@ -195,6 +190,158 @@ export const ThrowbackMultiple: Story = {
     docs: {
       description: {
         story: 'Three throwback memories spanning several months and years. Header reads "Throwback".',
+      },
+    },
+  },
+};
+
+// =============================================================================
+// Data-scenario stories
+// -----------------------------------------------------------------------------
+// Use these as a reference for testing data-driven UI: each story declares the
+// minimum mock data needed to trigger a specific code path. Copy and adjust.
+// See `.storybook/mocks/state.ts` for the full MockState shape.
+// =============================================================================
+
+export const PhotoClusterSuggestion: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      events: [],
+      medications: [],
+      photoClusters: [fixturePhotoCluster],
+    },
+    docs: {
+      description: {
+        story:
+          'Camera-roll cluster detected ("4 photos from Lake Park"). Suggestion card uses the first asset URI as its thumbnail. Mobile-only in production; this story drives it via the camera-roll mock so the UI is reviewable on web.',
+      },
+    },
+  },
+};
+
+export const StackedSuggestions: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      events: [],
+      medications: [fixtureOverdueWeeklyMed],
+      photoClusters: [fixturePhotoCluster],
+    },
+    docs: {
+      description: {
+        story:
+          'Two suggestions surface at once: photo cluster (photo_cluster kind) and an overdue weekly med (medication_due kind). Verifies the suggestion lane handles N>1 cards in priority order.',
+      },
+    },
+  },
+};
+
+export const MixedRecurringMedications: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      events: [
+        // Daily Apoquel already logged earlier today — should NOT fire med_due.
+        {
+          ...fixtureMedLog,
+          id: 'evt-log-today-apo',
+          metadata: { medication_id: 'med-1', dosage: '16mg' },
+        },
+      ],
+      medications: [
+        fixtureMedications[0],     // daily Apoquel (reminder card)
+        fixtureOverdueWeeklyMed,   // weekly Cytopoint, last given 10 days ago (med_due)
+        fixtureOverdueMonthlyMed,  // monthly Heartgard, last given 40 days ago (med_due)
+      ],
+    },
+    docs: {
+      description: {
+        story:
+          'Three medications at different frequencies: a daily reminder (already logged), a weekly that is overdue, and a monthly that is overdue. Tests that daily meds render as reminders, non-daily overdue meds render as suggestions, and a today-logged daily does not double-suggest.',
+      },
+    },
+  },
+};
+
+export const NudgeWithRecentHistory: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: [fixtureShares[0]],
+      // No events from today — empty_day_nudge should fire.
+      events: [
+        { ...fixtureMemoryEvent, id: 'evt-yest-1', event_date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
+        { ...fixtureVetVisitFull, id: 'evt-recent-vet', event_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+      ],
+      medications: [],
+    },
+    docs: {
+      description: {
+        story:
+          'Empty today + recent activity in the last few days. The "How was today?" nudge appears above a Recently section. Useful regression check for the empty-day-nudge rule that used to require ≥2 past events.',
+      },
+    },
+  },
+};
+
+export const FiConnectedActiveDay: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: fixtureShares,
+      events: [
+        fixtureFiActivityHigh,  // today's Fi activity card
+        fixtureMemoryEvent,
+        fixtureMedLog,
+      ],
+      medications: [fixtureMedications[0]],
+      fiConnected: true,
+      fiSteps: 12420,
+    },
+    docs: {
+      description: {
+        story:
+          "Fi connected and today's activity card rendered alongside a memory and a med log. Use this to review Fi step counts and goal-bar rendering without a real collar.",
+      },
+    },
+  },
+};
+
+export const KitchenSink: Story = {
+  parameters: {
+    mock: {
+      pets: [fixturePet],
+      shares: fixtureShares,
+      events: [
+        fixtureFiActivityHigh,
+        fixtureMemoryEvent,
+        fixtureMedLog,
+        fixtureVetVisitFull,
+      ],
+      throwbacks: [
+        {
+          ...fixtureMemoryEvent,
+          id: 'tb-ks-1',
+          title: 'Beach trip last year',
+          event_date: monthsAgo(13),
+        },
+      ],
+      medications: [
+        fixtureMedications[0],
+        fixtureOverdueWeeklyMed,
+      ],
+      photoClusters: [fixturePhotoCluster],
+      fiConnected: true,
+      fiSteps: 12420,
+    },
+    docs: {
+      description: {
+        story:
+          'Everything on at once: photo cluster suggestion, overdue weekly med, daily med reminder, Fi activity card, fresh memory, vet visit, and a throwback. Useful for visual regression of the full feed.',
       },
     },
   },
